@@ -9,9 +9,16 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@hello-pangea/dnd": "^18.0.1",
+    "clsx": "^2.1.1",
+    "hono": "^4.11.1",
+    "lucide-react": "^0.561.0",
     "next": "16.0.10",
+    "next-auth": "^5.0.0-beta.30",
     "react": "19.2.1",
-    "react-dom": "19.2.1"
+    "react-dom": "19.2.1",
+    "tailwind-merge": "^3.4.0",
+    "zod": "^4.2.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
