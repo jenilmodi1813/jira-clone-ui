@@ -1,6 +1,6 @@
 "use client"
 
-import { X, ChevronDown, Send, Link as LinkIcon, Trash2 } from "lucide-react"
+import { X, Send, Link as LinkIcon, Trash2, Plus } from "lucide-react"
 import { Issue } from "@/types"
 import { cn } from "@/lib/utils"
 
@@ -37,7 +37,7 @@ export function IssueDetails({ issue, onClose }: IssueDetailsProps) {
                             <LinkIcon size={14} /> Attach
                         </button>
                         <button className="flex items-center gap-2 bg-[var(--accent)] px-3 py-1.5 rounded hover:bg-gray-200 transition-colors text-sm font-medium">
-                            <ChevronDown size={14} /> Add child issue
+                            <Plus size={14} /> Create sub task
                         </button>
                     </div>
 

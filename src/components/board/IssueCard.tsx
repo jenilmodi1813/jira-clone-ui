@@ -34,8 +34,8 @@ export function IssueCard({ issue, index, onClick, isDragEnabled = true }: Issue
                     style={{ ...provided.draggableProps.style }}
                     onClick={onClick}
                     className={cn(
-                        "p-3 mb-2 bg-[var(--card-bg)] shadow-sm rounded border border-transparent hover:bg-[var(--accent)] group transition-colors select-none",
-                        snapshot.isDragging && "shadow-lg rotate-2 bg-blue-50 border-blue-200"
+                        "p-3 mb-2 bg-white shadow-[0px_1px_2px_0px_rgba(9,30,66,0.25)] rounded-[3px] border-none hover:bg-gray-50 group transition-colors select-none",
+                        snapshot.isDragging && "shadow-lg rotate-2 bg-blue-50"
                     )}
                 >
                     <IssueCardContent issue={issue} />
@@ -49,26 +49,37 @@ function IssueCardContent({ issue }: { issue: Issue }) {
     return (
         <>
             <div className="flex justify-between items-start mb-1">
-                <span className="text-sm text-[var(--foreground)] font-medium leading-tight group-hover:text-blue-700 transition-colors">
+                <span className="text-sm text-[#172B4D] font-medium leading-tight group-hover:text-[#0052cc] transition-colors">
                     {issue.title}
                 </span>
-                <button className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 rounded text-[var(--muted-foreground)]">
+                <button className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 rounded text-[#626F86]">
                     <MoreHorizontal size={14} />
                 </button>
             </div>
 
+            {/* Dummy Epic Label for visual match */}
+            {issue.priority === 'HIGH' && (
+                <div className="mt-2 mb-1">
+                    <span className="bg-[#8777D9] text-white px-1.5 py-0.5 rounded-[3px] text-[10px] font-bold uppercase tracking-wider">
+                        Password Reset
+                    </span>
+                </div>
+            )}
+
             <div className="flex items-center justify-between mt-3">
                 <div className="flex items-center gap-2">
-                    <IssueTypeIcon priority={issue.priority} />
-                    <span className="text-xs text-[var(--muted-foreground)] font-bold">{issue.id}</span>
+                    <div className="w-4 h-4 flex items-center justify-center">
+                        <IssueTypeIcon priority={issue.priority} />
+                    </div>
+                    <span className="text-xs text-[#626F86] font-medium">{issue.id}</span>
                 </div>
 
                 {issue.assignee ? (
-                    <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-[10px] text-white font-bold" title={issue.assignee.name}>
+                    <div className="w-6 h-6 rounded-full bg-[#0052cc] flex items-center justify-center text-[10px] text-white font-bold border-2 border-white ring-1 ring-gray-100" title={issue.assignee.name}>
                         {issue.assignee.name.charAt(0)}
                     </div>
                 ) : (
-                    <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] text-gray-500">
+                    <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] text-gray-500 border-2 border-white">
                         <UserIcon />
                     </div>
                 )}
