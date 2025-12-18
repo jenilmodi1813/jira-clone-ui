@@ -6,6 +6,7 @@ import { AuthCard } from "./auth-card"
 import { Loader2, Mail } from "lucide-react"
 import Link from "next/link"
 import { JiraLogo } from "@/components/ui/jira-logo"
+import { authService } from "../api/auth-service"
 
 export function SignUpCard() {
     const [isLoading, setIsLoading] = useState(false)
@@ -40,12 +41,17 @@ export function SignUpCard() {
             return
         }
 
-        // Mock sending OTP
-        setTimeout(() => {
+        // Call Signup API
+        try {
+            await authService.signup({ email: emailInput })
             setEmail(emailInput)
             setStep("otp")
+        } catch (error: any) {
+            console.error(error)
+            setError(error.message || "Failed to sign up. Please try again.")
+        } finally {
             setIsLoading(false)
-        }, 800)
+        }
     }
 
     const handleOtpChange = (index: number, value: string) => {
@@ -79,20 +85,26 @@ export function SignUpCard() {
             return
         }
 
-        // Verify Mock OTP (allow any 6 digit code for demo)
-        // For signup, we usually create the user then login
-        // Here we mock simulation
-        const res = await signIn("credentials", {
-            email,
-            password: "dummy-password",
-            redirect: false,
-        })
+        try {
+            await authService.verifyEmail({ email, verificationCode: code })
 
-        if (res?.error) {
-            setError("Invalid code")
+            // After verification, sign in to create session
+            const res = await signIn("credentials", {
+                email,
+                password: "dummy-password",
+                redirect: false,
+            })
+
+            if (res?.error) {
+                setError("Verification successful but login failed")
+            } else {
+                window.location.href = "/project/JIRA/board"
+            }
+        } catch (error) {
+            console.error(error)
+            setError("Invalid code or verification failed")
+        } finally {
             setIsLoading(false)
-        } else {
-            window.location.href = "/project/JIRA/board"
         }
     }
 

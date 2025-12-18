@@ -1,4 +1,4 @@
-export type IssueStatus = "TODO" | "IN_PROGRESS" | "DONE"
+export type IssueStatus = "TODO" | "IN_PROGRESS" | "IN_REVIEW" | "IN_TESTING" | "DONE"
 
 export type Issue = {
     id: string
