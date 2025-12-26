@@ -5,9 +5,15 @@ import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { ChevronRight, Share2, Zap, Maximize2, MoreHorizontal, Layout, List, Calendar, FileText, BarChart2, Code } from "lucide-react"
 
+import { useProject } from "@/context/ProjectContext"
+
 export function ProjectHeader() {
     const pathname = usePathname()
-    const projectId = "JIRA" // In real app, get from params
+    const { currentProject } = useProject()
+
+    // Fallback to params or context
+    const projectKey = currentProject?.projectKey || "JIRA"
+    const projectName = currentProject?.name || "Software Development"
 
     return (
         <div className="flex flex-col border-b border-[var(--border)] bg-[var(--background)]">
@@ -16,7 +22,7 @@ export function ProjectHeader() {
                 <div className="flex items-center gap-2 text-sm text-[var(--muted-foreground)]">
                     <span className="hover:underline cursor-pointer">Projects</span>
                     <ChevronRight size={16} />
-                    <span className="hover:underline cursor-pointer text-[var(--foreground)] font-medium">Software Development</span>
+                    <span className="hover:underline cursor-pointer text-[var(--foreground)] font-medium">{projectName}</span>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -41,7 +47,7 @@ export function ProjectHeader() {
                         </svg>
                     </div>
                     <div>
-                        <h1 className="text-2xl font-semibold text-[var(--foreground)]">Software Development</h1>
+                        <h1 className="text-2xl font-semibold text-[var(--foreground)]">{projectName}</h1>
                         <div className="flex items-center gap-2 text-sm text-[var(--muted-foreground)] mt-1">
                             <span>Software project</span>
                             <span>•</span>
@@ -64,13 +70,13 @@ export function ProjectHeader() {
 
             {/* Horizontal Navigation Tabs */}
             <div className="px-6 flex items-center gap-1 overflow-x-auto no-scrollbar">
-                <Tab href={`/project/${projectId}/summary`} label="Summary" icon={<FileText size={16} />} />
-                <Tab href={`/project/${projectId}/timeline`} label="Timeline" icon={<BarChart2 size={16} />} />
-                <Tab href={`/project/${projectId}/backlog`} label="Backlog" icon={<List size={16} />} />
-                <Tab href={`/project/${projectId}/board`} label="Board" icon={<Layout size={16} />} />
-                <Tab href={`/project/${projectId}/calendar`} label="Calendar" icon={<Calendar size={16} />} />
-                <Tab href={`/project/${projectId}/list`} label="List" icon={<List size={16} />} />
-                <Tab href={`/project/${projectId}/code`} label="Code" icon={<Code size={16} />} />
+                <Tab href={`/project/${projectKey}/summary`} label="Summary" icon={<FileText size={16} />} />
+                <Tab href={`/project/${projectKey}/timeline`} label="Timeline" icon={<BarChart2 size={16} />} />
+                <Tab href={`/project/${projectKey}/backlog`} label="Backlog" icon={<List size={16} />} />
+                <Tab href={`/project/${projectKey}/board`} label="Board" icon={<Layout size={16} />} />
+                <Tab href={`/project/${projectKey}/calendar`} label="Calendar" icon={<Calendar size={16} />} />
+                <Tab href={`/project/${projectKey}/list`} label="List" icon={<List size={16} />} />
+                <Tab href={`/project/${projectKey}/code`} label="Code" icon={<Code size={16} />} />
 
                 <button className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-[var(--muted-foreground)] hover:bg-gray-100 rounded-[3px] transition-colors ml-2">
                     <span>More</span>

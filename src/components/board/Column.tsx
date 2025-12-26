@@ -5,6 +5,7 @@ import { Lock } from "lucide-react"
 import { ColumnType, Issue, IssueStatus } from "@/types"
 import { IssueCard } from "./IssueCard"
 import { cn } from "@/lib/utils"
+import { useProject } from "@/context/ProjectContext"
 
 interface ColumnProps {
     column: ColumnType
@@ -14,7 +15,14 @@ interface ColumnProps {
 }
 
 export function Column({ column, onIssueClick, isDragEnabled = true, draggedFromStatus }: ColumnProps) {
-    const isRestricted = column.id === "DONE" && draggedFromStatus && draggedFromStatus !== "IN_TESTING"
+    const { columns } = useProject()
+
+    // Resolve names for restriction check
+    const isDoneColumn = column.title.toUpperCase() === "DONE"
+    const sourceColumn = columns.find(c => c.id === draggedFromStatus)
+    const isFromTesting = sourceColumn?.name.toUpperCase() === "IN TESTING" || sourceColumn?.name.toUpperCase() === "TESTING"
+
+    const isRestricted = isDoneColumn && draggedFromStatus && !isFromTesting
 
     return (
         <div className="flex flex-col w-[280px] min-w-[280px] bg-[#F4F5F7] rounded-lg mx-2 max-h-full relative overflow-hidden">

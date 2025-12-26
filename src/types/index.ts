@@ -1,14 +1,22 @@
-export type IssueStatus = "TODO" | "IN_PROGRESS" | "IN_REVIEW" | "IN_TESTING" | "DONE"
+export type IssueStatus = string;
 
-export type Issue = {
-    id: string
-    title: string
-    status: IssueStatus
-    priority: "LOW" | "MEDIUM" | "HIGH"
+export interface Issue {
+    id: string;
+    title: string;
+    status: IssueStatus;
+    priority: "LOW" | "MEDIUM" | "HIGH";
+    issueType?: "TASK" | "STORY" | "BUG";
+    boardColumnId?: string;
+    projectId?: string;
+    assigneeId?: string;
+    reporterId?: string;
+    description?: string;
+    createdAt?: string;
+    updatedAt?: string;
     assignee?: {
-        name: string
-        avatar?: string
-    }
+        name: string;
+        avatar?: string;
+    };
 }
 
 export type ColumnType = {

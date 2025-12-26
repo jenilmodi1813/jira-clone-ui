@@ -1,9 +1,12 @@
 "use client"
 
+import { useEffect } from "react"
 import { Draggable } from "@hello-pangea/dnd"
 import { Issue } from "@/types"
 import { cn } from "@/lib/utils"
-import { CheckCircle2, Circle, Clock, MoreHorizontal } from "lucide-react"
+import { MoreHorizontal } from "lucide-react"
+import { IssueTypeIcon } from "@/components/ui/issue-type-icon"
+import { useProject } from "@/context/ProjectContext"
 
 interface IssueCardProps {
     issue: Issue
@@ -46,6 +49,17 @@ export function IssueCard({ issue, index, onClick, isDragEnabled = true }: Issue
 }
 
 function IssueCardContent({ issue }: { issue: Issue }) {
+    const { users, getUserProfile } = useProject()
+
+    useEffect(() => {
+        if (issue.assigneeId && !issue.assignee && !users[issue.assigneeId]) {
+            getUserProfile(issue.assigneeId)
+        }
+    }, [issue.assigneeId, users, getUserProfile])
+
+    const resolvedAssignee = issue.assignee || (issue.assigneeId ? users[issue.assigneeId] : undefined)
+    const assigneeName = resolvedAssignee?.fullName || resolvedAssignee?.name || "Unassigned"
+
     return (
         <>
             <div className="flex justify-between items-start mb-1">
@@ -68,18 +82,18 @@ function IssueCardContent({ issue }: { issue: Issue }) {
 
             <div className="flex items-center justify-between mt-3">
                 <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 flex items-center justify-center">
-                        <IssueTypeIcon priority={issue.priority} />
+                    <div className="flex items-center gap-1.5 grayscale-[0.2]">
+                        <IssueTypeIcon type={issue.issueType} />
+                        <PriorityIcon priority={issue.priority} />
                     </div>
-                    <span className="text-xs text-[#626F86] font-medium">{issue.id}</span>
                 </div>
 
-                {issue.assignee ? (
-                    <div className="w-6 h-6 rounded-full bg-[#0052cc] flex items-center justify-center text-[10px] text-white font-bold border-2 border-white ring-1 ring-gray-100" title={issue.assignee.name}>
-                        {issue.assignee.name.charAt(0)}
+                {resolvedAssignee ? (
+                    <div className="w-6 h-6 rounded-full bg-[#0052cc] flex items-center justify-center text-[10px] text-white font-bold border-2 border-white" title={assigneeName}>
+                        {assigneeName.charAt(0)}
                     </div>
                 ) : (
-                    <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] text-gray-500 border-2 border-white">
+                    <div className="w-6 h-6 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-[10px] text-gray-500">
                         <UserIcon />
                     </div>
                 )}
@@ -88,10 +102,10 @@ function IssueCardContent({ issue }: { issue: Issue }) {
     )
 }
 
-function IssueTypeIcon({ priority }: { priority: string }) {
-    if (priority === 'HIGH') return <CheckCircle2 size={14} className="text-red-500" />
-    if (priority === 'MEDIUM') return <Circle size={14} className="text-orange-400" />
-    return <Clock size={14} className="text-green-500" />
+function PriorityIcon({ priority }: { priority: string }) {
+    if (priority === 'HIGH') return <div title="High Priority" className="text-red-600"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71L12 2z" /></svg></div>
+    if (priority === 'MEDIUM') return <div title="Medium Priority" className="text-orange-500"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71L12 2z" /></svg></div>
+    return <div title="Low Priority" className="text-blue-500 rotate-180"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71L12 2z" /></svg></div>
 }
 
 function UserIcon() {

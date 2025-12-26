@@ -1,43 +1,134 @@
 "use client"
 
-import { useState } from "react"
-import { ChevronDown, ChevronRight, MoreHorizontal, Plus, Search, UserCircle, Calendar } from "lucide-react"
+import { useState, useEffect } from "react"
+import { useSession } from "next-auth/react"
+import { ChevronDown, ChevronRight, MoreHorizontal, Plus, Search, UserCircle, Calendar, ArrowRight, Loader2 } from "lucide-react"
 import { IssueDetails } from "@/components/issue/IssueDetails"
 import { CreateIssueModal } from "@/components/issue/CreateIssueModal"
+import { IssueTypeIcon } from "@/components/ui/issue-type-icon"
 import { Issue } from "@/types"
 import { cn } from "@/lib/utils"
 
-export function Backlog() {
-    const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null)
-    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+import { useProject } from "@/context/ProjectContext"
 
-    const handleIssueClick = (issue: any) => {
+export function Backlog() {
+    const { issues, currentBoard, currentProject, addIssue, columns, isCreateModalOpen, setIsCreateModalOpen } = useProject()
+    const { data: session } = useSession()
+    const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null)
+    const [isCreatingIssue, setIsCreatingIssue] = useState(false)
+    const [newIssueTitle, setNewIssueTitle] = useState("")
+    const [isSubmittingIssue, setIsSubmittingIssue] = useState(false)
+
+    // New state for board creation
+    const [isCreatingBoard, setIsCreatingBoard] = useState(false)
+    const [newBoardName, setNewBoardName] = useState("")
+
+    const handleIssueClick = (issue: Issue) => {
         if (selectedIssue?.id === issue.id) {
             setSelectedIssue(null)
             return
         }
+        setSelectedIssue(issue)
+    }
 
-        const fullIssue: Issue = {
-            id: issue.id,
-            title: issue.title,
-            status: issue.status,
-            priority: issue.priority,
-            assignee: issue.assignee ? { name: issue.assignee } : undefined
+    const boardIssues = issues.filter(i => ["IN_PROGRESS", "IN_REVIEW", "IN_TESTING"].includes(i.status))
+    const backlogIssues = issues.filter(i => ["TODO", "DONE"].includes(i.status))
+
+    const handleCreateIssue = async () => {
+        if (!newIssueTitle.trim() || !currentProject) {
+            setIsCreatingIssue(false)
+            return
         }
-        setSelectedIssue(fullIssue)
+
+        setIsSubmittingIssue(true)
+        try {
+            const { workspaceApi, ISSUE_CONSTANTS } = await import("@/features/workspace/api/workspace-api")
+
+            // Resolve dynamic column
+            // 1. Resolve dynamic column (Target position 1)
+            let boardColumnId = ISSUE_CONSTANTS.BOARD_COLUMN_ID;
+            try {
+                const board = await workspaceApi.getBoardByProject(currentProject.id);
+                if (board) {
+                    const cols = await workspaceApi.getBoardColumns(board.id);
+                    if (cols && cols.length > 0) {
+                        const targetCol = cols.find(c => c.position === 1) || cols[0];
+                        boardColumnId = targetCol.id;
+                        console.log(`[Backlog] Using dynamic column: ${targetCol.name} (id: ${targetCol.id}, position: ${targetCol.position})`);
+                    }
+                }
+            } catch (e) {
+                console.warn("[Backlog] Failed to fetch dynamic columns, using fallback:", e);
+            }
+
+            // 2. Resolve dynamic Epic
+            const targetEpicUuid = ISSUE_CONSTANTS.ISSUE_TYPES.EPIC;
+            const epicIssue = issues.find(i => (i as any).issueTypeId === targetEpicUuid || (i.issueType as string) === "EPIC");
+            const epicId = epicIssue?.id || undefined;
+
+            // 3. Resolve dynamic Assignee (Default to self)
+            // Handle Case where session user ID is "1" which backend rejects as invalid UUID
+            const rawUserId = session?.user?.id || (session?.user as any)?.userId;
+            const assigneeId = (rawUserId && rawUserId !== "1") ? rawUserId : ISSUE_CONSTANTS.ASSIGNEE_ID;
+
+            const newIssue = await workspaceApi.createIssue({
+                title: newIssueTitle,
+                projectId: currentProject.id,
+                boardColumnId: boardColumnId,
+                issueTypeId: ISSUE_CONSTANTS.ISSUE_TYPES.TASK,
+                priority: "MEDIUM",
+                epicId: epicId,
+                assigneeId: assigneeId
+            })
+
+            addIssue(newIssue)
+            setNewIssueTitle("")
+            setIsCreatingIssue(false)
+        } catch (error) {
+            console.error("Failed to create issue:", error)
+        } finally {
+            setIsSubmittingIssue(false)
+        }
+    }
+
+    const handleCreateBoard = async () => {
+        if (!newBoardName.trim() || !currentProject) {
+            setIsCreatingBoard(false)
+            return
+        }
+        console.log("Handle Create Board Triggered", newBoardName)
+        try {
+            const { workspaceApi } = await import("@/features/workspace/api/workspace-api")
+            // Resolve project ID safely
+            const projectId = currentProject.id;
+
+            await workspaceApi.createBoard({
+                name: newBoardName,
+                projectId: projectId,
+                type: "KANBAN"
+            })
+            setNewBoardName("")
+            setIsCreatingBoard(false)
+            // Ideally trigger refresh here. Reloading page as per previous plan for immediate feedback.
+            window.location.reload()
+        } catch (error) {
+            console.error("Failed to create board:", error)
+        }
     }
 
     return (
         <div className="flex flex-col h-full bg-white relative">
             {/* Backlog Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-                <div className="relative">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-[var(--muted-foreground)]" />
-                    <input
-                        type="text"
-                        placeholder="Search backlog"
-                        className="h-9 w-40 sm:w-64 pl-9 pr-4 rounded-[3px] border border-[var(--input)] bg-[var(--background)] text-sm focus:outline-none focus:ring-2 focus:ring-[#0052cc] transition-all hover:bg-gray-50"
-                    />
+                <div className="flex items-center gap-2">
+                    <div className="relative">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-[var(--muted-foreground)]" />
+                        <input
+                            type="text"
+                            placeholder="Search backlog"
+                            className="h-9 w-40 sm:w-64 pl-9 pr-4 rounded-[3px] border border-[var(--input)] bg-[var(--background)] text-sm focus:outline-none focus:ring-2 focus:ring-[#0052cc] transition-all hover:bg-gray-50"
+                        />
+                    </div>
                 </div>
                 <div className="flex items-center gap-2">
                     <div className="flex -space-x-2 mr-2">
@@ -47,13 +138,16 @@ export function Backlog() {
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-8">
-                {/* Sprint Section */}
+                {/* Sprint (Board) Section */}
                 <div className="space-y-2">
                     <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                             <ChevronDown size={14} className="text-gray-500" />
-                            <h3 className="text-sm font-semibold text-[#172B4D]">Board</h3>
-                            <span className="text-xs text-[#626F86]">• 2 issues</span>
+                            <h3 className="text-sm font-semibold text-[#172B4D]">
+                                {currentBoard?.name || "Board"}
+                                {currentProject?.projectKey && <span className="text-xs text-[#626F86] ml-2 font-normal">({currentProject.projectKey})</span>}
+                            </h3>
+                            <span className="text-xs text-[#626F86]">• {boardIssues.length} issues</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-[3px] font-bold uppercase">Complete Board</span>
@@ -62,33 +156,61 @@ export function Backlog() {
                     </div>
 
                     <div className="bg-white border border-gray-200 rounded-[3px] overflow-hidden">
-                        <BacklogItem
-                            id="JIRA-3"
-                            title="Implement Sidebar component"
-                            priority="HIGH"
-                            status="IN_PROGRESS"
-                            assignee="Antigravity"
-                            epic="Design System"
-                            isSelected={selectedIssue?.id === "JIRA-3"}
-                            onClick={() => handleIssueClick({ id: "JIRA-3", title: "Implement Sidebar component", priority: "HIGH", status: "IN_PROGRESS", assignee: "Antigravity" })}
-                        />
-                        <BacklogItem
-                            id="JIRA-5"
-                            title="Setup database schema"
-                            priority="MEDIUM"
-                            status="IN_REVIEW"
-                            epic="Backend"
-                            isSelected={selectedIssue?.id === "JIRA-5"}
-                            onClick={() => handleIssueClick({ id: "JIRA-5", title: "Setup database schema", priority: "MEDIUM", status: "IN_REVIEW", epic: "Backend" })}
-                        />
+                        {boardIssues.map(issue => (
+                            <BacklogItem
+                                key={issue.id}
+                                id={issue.id}
+                                title={issue.title}
+                                priority={issue.priority}
+                                status={issue.status}
+                                type={issue.issueType}
+                                assignee={issue.assignee?.name}
+                                assigneeId={issue.assigneeId}
+                                isSelected={selectedIssue?.id === issue.id}
+                                onClick={() => handleIssueClick(issue)}
+                            />
+                        ))}
                     </div>
-                    <button
-                        onClick={() => setIsCreateModalOpen(true)}
-                        className="flex items-center gap-1 text-xs font-medium text-[#44546F] hover:bg-gray-100 px-2 py-1.5 w-full mt-1 transition-colors"
-                    >
-                        <Plus size={14} />
-                        Create issue
-                    </button>
+
+                    {isCreatingBoard ? (
+                        <div className="mt-1 relative group">
+                            <input
+                                autoFocus
+                                type="text"
+                                value={newBoardName}
+                                onChange={(e) => setNewBoardName(e.target.value)}
+                                onKeyDown={(e) => {
+                                    e.stopPropagation()
+                                    if (e.key === "Enter") {
+                                        e.preventDefault()
+                                        handleCreateBoard()
+                                    }
+                                    if (e.key === "Escape") setIsCreatingBoard(false)
+                                }}
+                                placeholder="Enter board name..."
+                                className="w-full h-8 pl-2 pr-8 text-sm border-2 border-[#0052cc] rounded-[3px] focus:outline-none bg-white shadow-sm"
+                            />
+                            <button
+                                onClick={handleCreateBoard}
+                                disabled={!newBoardName.trim()}
+                                title="Create Board"
+                                className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 text-[#0052cc] hover:bg-blue-50 rounded-[3px] transition-all disabled:opacity-30 disabled:hover:bg-transparent group/btn"
+                            >
+                                <ArrowRight size={18} className="group-hover/btn:translate-x-0.5 transition-transform" />
+                            </button>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={() => {
+                                setIsCreatingIssue(false)
+                                setIsCreatingBoard(true)
+                            }}
+                            className="flex items-center gap-1 text-xs font-medium text-[#44546F] hover:bg-gray-100 px-2 py-1.5 w-full mt-1 transition-colors"
+                        >
+                            <Plus size={14} />
+                            Create Board
+                        </button>
+                    )}
                 </div>
 
                 {/* Backlog Section */}
@@ -97,7 +219,7 @@ export function Backlog() {
                         <div className="flex items-center gap-2">
                             <ChevronDown size={14} className="text-gray-500" />
                             <h3 className="text-sm font-semibold text-[#172B4D]">Backlog</h3>
-                            <span className="text-xs text-[#626F86] font-medium">• 3 issues</span>
+                            <span className="text-xs text-[#626F86] font-medium">• {backlogIssues.length} issues</span>
                         </div>
                         <button className="bg-gray-100 hover:bg-gray-200 text-[#172B4D] text-xs px-2 py-1 rounded-[3px] font-medium">
                             Create Sprint
@@ -105,32 +227,20 @@ export function Backlog() {
                     </div>
 
                     <div className="bg-white border border-gray-200 rounded-[3px]">
-                        <BacklogItem
-                            id="JIRA-1"
-                            title="Set up project repository"
-                            priority="HIGH"
-                            status="IN_TESTING"
-                            assignee="Jenil"
-                            isSelected={selectedIssue?.id === "JIRA-1"}
-                            onClick={() => handleIssueClick({ id: "JIRA-1", title: "Set up project repository", priority: "HIGH", status: "IN_TESTING", assignee: "Jenil" })}
-                        />
-                        <BacklogItem
-                            id="JIRA-2"
-                            title="Design authentication flow"
-                            priority="MEDIUM"
-                            status="TODO"
-                            epic="Auth"
-                            isSelected={selectedIssue?.id === "JIRA-2"}
-                            onClick={() => handleIssueClick({ id: "JIRA-2", title: "Design authentication flow", priority: "MEDIUM", status: "TODO", epic: "Auth" })}
-                        />
-                        <BacklogItem
-                            id="JIRA-6"
-                            title="Research drag and drop libraries"
-                            priority="LOW"
-                            status="TODO"
-                            isSelected={selectedIssue?.id === "JIRA-6"}
-                            onClick={() => handleIssueClick({ id: "JIRA-6", title: "Research drag and drop libraries", priority: "LOW", status: "TODO" })}
-                        />
+                        {backlogIssues.map(issue => (
+                            <BacklogItem
+                                key={issue.id}
+                                id={issue.id}
+                                title={issue.title}
+                                priority={issue.priority}
+                                status={issue.status}
+                                type={issue.issueType}
+                                assignee={issue.assignee?.name}
+                                assigneeId={issue.assigneeId}
+                                isSelected={selectedIssue?.id === issue.id}
+                                onClick={() => handleIssueClick(issue)}
+                            />
+                        ))}
                     </div>
                     <button
                         onClick={() => setIsCreateModalOpen(true)}
@@ -142,13 +252,24 @@ export function Backlog() {
                 </div>
             </div>
 
-            <IssueDetails issue={selectedIssue} onClose={() => setSelectedIssue(null)} />
-            <CreateIssueModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} />
+            <IssueDetails issue={selectedIssue ? issues.find(i => i.id === selectedIssue.id) || null : null} onClose={() => setSelectedIssue(null)} />
+            {/* Modal for creating issues */}
+            <CreateIssueModal />
         </div>
     )
 }
 
-function BacklogItem({ id, title, priority, status, assignee, epic, onClick, isSelected }: any) {
+function BacklogItem({ id, title, priority, status, assignee, assigneeId, type, epic, onClick, isSelected }: any) {
+    const { users, getUserProfile } = useProject()
+
+    useEffect(() => {
+        if (assigneeId && !assignee && !users[assigneeId]) {
+            getUserProfile(assigneeId)
+        }
+    }, [assigneeId, assignee, users, getUserProfile])
+
+    const displayName = assignee || (assigneeId ? users[assigneeId]?.name : undefined)
+
     return (
         <div
             onClick={onClick}
@@ -168,6 +289,7 @@ function BacklogItem({ id, title, priority, status, assignee, epic, onClick, isS
                 )}>
                     {isSelected && <span className="text-[10px] text-white leading-none">✓</span>}
                 </div>
+                <IssueTypeIcon type={type} />
                 <span className={cn(
                     "text-sm font-medium truncate transition-colors",
                     isSelected ? "text-[#0052cc]" : "text-[#172B4D] group-hover:text-[#0052cc]"
@@ -180,10 +302,9 @@ function BacklogItem({ id, title, priority, status, assignee, epic, onClick, isS
             </div>
 
             <div className="flex items-center gap-4 shrink-0">
-                <span className="text-xs text-[#626F86] font-medium">{id}</span>
-                {assignee ? (
-                    <div className="w-6 h-6 rounded-full bg-[#0052cc] flex items-center justify-center text-[10px] text-white font-bold" title={assignee}>
-                        {assignee.charAt(0)}
+                {displayName ? (
+                    <div className="w-6 h-6 rounded-full bg-[#0052cc] flex items-center justify-center text-[10px] text-white font-bold" title={displayName}>
+                        {displayName.charAt(0)}
                     </div>
                 ) : (
                     <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] text-gray-500">
