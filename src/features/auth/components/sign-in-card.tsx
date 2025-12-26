@@ -86,12 +86,16 @@ export function SignInCard() {
         }
 
         try {
-            await authService.verifyLogin({ email, verificationCode: code })
+            const result = await authService.verifyLogin({ email, verificationCode: code })
+            const token = result.token || result.accessToken || ""
+            const refreshToken = result.refreshToken || ""
 
             // After verification, sign in to create session
             const res = await signIn("credentials", {
                 email,
                 password: "dummy-password",
+                token: token, // Access Token
+                refreshToken: refreshToken, // Refresh Token
                 redirect: false,
             })
 

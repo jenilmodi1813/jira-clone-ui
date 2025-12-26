@@ -1,8 +1,17 @@
 "use client"
 
+import * as React from "react"
 import { Bell, HelpCircle, Search, Settings, Grid } from "lucide-react"
+import { useSession } from "next-auth/react"
+import { ProfileModal } from "@/features/users/components/profile-modal"
 
 export function Header() {
+    const [isProfileOpen, setIsProfileOpen] = React.useState(false)
+    const { data: session } = useSession()
+
+    const userInitial = session?.user?.name?.[0]?.toUpperCase() || "J"
+    const userImage = session?.user?.image
+
     return (
         <header className="h-14 border-b border-[var(--border)] bg-[var(--background)] px-4 flex items-center justify-between fixed top-0 right-0 left-64 z-20">
             <div className="flex items-center gap-4 w-full max-w-xl">
@@ -30,10 +39,19 @@ export function Header() {
                     <Grid size={20} />
                 </button>
 
-                <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white font-bold cursor-pointer">
-                    J
+                <div
+                    onClick={() => setIsProfileOpen(true)}
+                    className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white font-bold cursor-pointer hover:ring-2 hover:ring-[var(--ring)] hover:ring-offset-2 transition-all overflow-hidden"
+                >
+                    {userImage ? (
+                        <img src={userImage} alt={session?.user?.name || "User"} className="w-full h-full object-cover" />
+                    ) : (
+                        userInitial
+                    )}
                 </div>
             </div>
+
+            <ProfileModal isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
         </header>
     )
 }

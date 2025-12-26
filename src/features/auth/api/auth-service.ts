@@ -75,7 +75,7 @@ export const authService = {
         }
     },
 
-    verifyLogin: async (request: VerifyEmailRequest): Promise<void> => {
+    verifyLogin: async (request: VerifyEmailRequest): Promise<any> => {
         const response = await fetch(`${API_URL}/verify-login`, {
             method: "POST",
             headers: {
@@ -87,5 +87,21 @@ export const authService = {
         if (!response.ok) {
             await handleErrorResponse(response, "Verify Login");
         }
+        return response.json();
+    },
+
+    refreshToken: async (refreshToken: string): Promise<any> => {
+        const response = await fetch(`${API_URL}/auth/refresh`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ refreshToken }),
+        });
+
+        if (!response.ok) {
+            await handleErrorResponse(response, "Refresh Token");
+        }
+        return response.json();
     },
 };

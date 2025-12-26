@@ -2,12 +2,105 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { LayoutGrid, Settings, List, Briefcase, Clock, ChevronDown, Plus, LogOut } from "lucide-react"
+import { LayoutGrid, Settings, List, Briefcase, Clock, ChevronDown, Plus, LogOut, Layout } from "lucide-react"
 import { signOut } from "next-auth/react"
 import { cn } from "@/lib/utils"
 import { JiraLogo } from "@/components/ui/jira-logo"
+import { usePathname } from "next/navigation"
+import { workspaceApi, OrganizationResponse, ProjectResponse, BoardResponse } from "@/features/workspace/api/workspace-api"
+import { CreateProjectModal } from "@/components/workspace/CreateProjectModal"
+
+import { useProject, DEFAULT_COLUMNS } from "@/context/ProjectContext"
+
+interface FullHierarchy extends OrganizationResponse {
+    projects: (ProjectResponse & { board?: BoardResponse | null })[];
+}
 
 export function Sidebar({ className }: { className?: string }) {
+    const pathname = usePathname()
+    const { setCurrentProject, setCurrentBoard, setCurrentOrg, setIssues, setColumns, setIsCreateModalOpen, currentProject } = useProject()
+    const [hierarchy, setHierarchy] = React.useState<FullHierarchy[]>([])
+    const [loading, setLoading] = React.useState(true)
+    const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = React.useState(false)
+
+    React.useEffect(() => {
+        const fetchHierarchy = async () => {
+            try {
+                setLoading(true);
+                // 1. Get Orgs
+                const orgs = await workspaceApi.getOrganizations();
+
+                // 2. Build Hierarchy
+                const fullHierarchy: FullHierarchy[] = await Promise.all(
+                    orgs.map(async (org: any) => {
+                        const orgId = org.id || org.uuid || org.uuidValue || org.organizationId;
+                        if (!orgId) return { ...org, projects: [] };
+
+                        // Get Projects for this Org
+                        const projects = await workspaceApi.getProjectsByOrg(orgId);
+
+                        // Get Boards for each Project (Safe Fetch)
+                        const projectsWithBoards = await Promise.all(
+                            projects.map(async (project: any) => {
+                                const projectId = project.id || project.uuid || project.projectId;
+                                if (!projectId) return project;
+
+                                let board = null;
+                                let issues = [];
+                                try {
+                                    // Always fetch issues for the project
+                                    issues = await workspaceApi.getIssuesByProject(projectId);
+
+                                    // Try to fetch board (safe fetch)
+                                    board = await workspaceApi.getBoardByProject(projectId);
+                                } catch (e) {
+                                    console.warn(`[Sidebar] Safe fetch failed for ${projectId}`, e);
+                                }
+
+                                return { ...project, board: board ? { ...board, issues } : null, issues };
+                            })
+                        );
+                        return { ...org, projects: projectsWithBoards };
+                    })
+                );
+
+                setHierarchy(fullHierarchy);
+
+                // 3. Auto-select based on URL
+                const projectKeyMatch = pathname.match(/\/project\/([^\/]+)/);
+                if (projectKeyMatch) {
+                    const key = projectKeyMatch[1];
+                    for (const org of fullHierarchy) {
+                        const project = org.projects.find(p => p.projectKey === key);
+                        if (project) {
+                            const { projects, ...projInfo } = project as any;
+                            setCurrentProject(projInfo);
+                            setCurrentOrg({ id: org.id, name: org.name });
+
+                            if (project.board) {
+                                setCurrentBoard(project.board);
+                                setIssues(project.board.issues || []);
+                                setColumns(project.board.columns && project.board.columns.length > 0 ? project.board.columns : DEFAULT_COLUMNS);
+                            } else {
+                                // Fallback if no board
+                                setCurrentBoard(null);
+                                setIssues((project as any).issues || []);
+                                setColumns(DEFAULT_COLUMNS);
+                            }
+                            break;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error("Hierarchy fetch error:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchHierarchy();
+    }, [pathname]);
+
     return (
         <div className={cn("flex flex-col h-screen w-64 bg-[#FAFBFC] border-r border-[var(--border)] fixed left-0 top-0 z-30", className)}>
             {/* Project Header */}
@@ -34,16 +127,14 @@ export function Sidebar({ className }: { className?: string }) {
                 {/* Create Section */}
                 <div className="px-3">
                     <button
-                        className="flex items-center gap-3 w-full px-2 py-2 text-sm font-medium text-[#172B4D] hover:bg-[#EBECF0] rounded-[3px] transition-colors group"
-                        onClick={() => {
-                            // This would ideally open the Create issue modal
-                            console.log("Create sub task clicked")
-                        }}
+                        className="flex items-center gap-3 w-full px-2 py-2 text-sm font-medium text-[#172B4D] hover:bg-[#EBECF0] rounded-[3px] transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={!currentProject}
+                        onClick={() => setIsCreateModalOpen(true)}
                     >
                         <div className="flex items-center justify-center bg-[#0052cc] text-white w-4 h-4 rounded-[2px] group-hover:bg-[#0065ff]">
                             <Plus size={12} strokeWidth={3} />
                         </div>
-                        <span className="truncate">Create sub task</span>
+                        <span className="truncate">Create issue</span>
                     </button>
                 </div>
 
@@ -51,46 +142,85 @@ export function Sidebar({ className }: { className?: string }) {
                 <div>
                     <div className="px-2 mb-2 flex items-center justify-between group cursor-pointer">
                         <span className="text-xs font-bold text-[#626F86] uppercase tracking-wide">Spaces</span>
-                        <Plus size={14} className="text-[#626F86] opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Plus
+                                size={14}
+                                className="text-[#626F86] hover:text-[#0052cc]"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsCreateProjectModalOpen(true);
+                                }}
+                            />
+                        </div>
                     </div>
+
                     <div className="space-y-1">
-                        <NavItem
-                            href="/project/JIRA/board"
-                            icon={<div className="w-4 h-4 rounded-[2px] bg-[#FF5630]" />}
-                            label="Software Development"
-                            active
-                        />
-                        <NavItem
-                            href="#"
-                            icon={<div className="w-4 h-4 rounded-[2px] bg-blue-500" />}
-                            label="Learning Jira Project"
-                        />
-                        <NavItem
-                            href="#"
-                            icon={<div className="w-4 h-4 rounded-[2px] bg-green-500" />}
-                            label="Marketing"
-                        />
+                        {loading ? (
+                            <div className="px-3 py-2 space-y-2">
+                                <div className="h-4 bg-gray-100 animate-pulse rounded w-3/4" />
+                                <div className="h-4 bg-gray-100 animate-pulse rounded w-1/2" />
+                            </div>
+                        ) : hierarchy.length > 0 ? (
+                            hierarchy.map(org => (
+                                <div key={org.id} className="space-y-1">
+                                    <div className="px-2 py-1 text-[11px] font-bold text-[#626F86] truncate">
+                                        {org.name}
+                                    </div>
+                                    {org.projects.map(project => (
+                                        <div key={project.id} className="ml-1">
+                                            {/* Render Item even if no board, use default or project info */}
+                                            <NavItem
+                                                href={`/project/${project.projectKey}/board`}
+                                                icon={
+                                                    project.board ? (
+                                                        <div className={cn("w-4 h-4 rounded-[2px]",
+                                                            project.board.type === "SCRUM" ? "bg-blue-500" : "bg-[#FF5630]"
+                                                        )} />
+                                                    ) : (
+                                                        <Layout size={16} className="text-gray-400" />
+                                                    )
+                                                }
+                                                label={project.board ? project.board.name : project.name}
+                                                active={pathname?.includes(project.projectKey)}
+                                                onClick={() => {
+                                                    const { projects, ...projInfo } = project as any;
+                                                    setCurrentProject(projInfo);
+                                                    setCurrentOrg({ id: org.id, name: org.name });
+
+                                                    if (project.board) {
+                                                        setCurrentBoard(project.board);
+                                                        setIssues(project.board.issues || []);
+                                                        setColumns(project.board.columns && project.board.columns.length > 0 ? project.board.columns : DEFAULT_COLUMNS);
+                                                    } else {
+                                                        setCurrentBoard(null);
+                                                        setIssues((project as any).issues || []);
+                                                        setColumns(DEFAULT_COLUMNS);
+                                                    }
+                                                }}
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            ))
+                        ) : (
+                            <div className="px-3 py-2 text-xs text-[#626F86] italic">
+                                No spaces found
+                            </div>
+                        )}
                     </div>
+
                     <div className="mt-2 px-2 text-xs font-medium text-[#626F86] hover:text-[#0052cc] cursor-pointer flex items-center gap-1">
                         <ChevronDown size={14} />
                         <span>More spaces</span>
                     </div>
                 </div>
 
-                {/* Recent Section */}
-                <div>
-                    <div className="px-2 mb-2 text-xs font-bold text-[#626F86] uppercase tracking-wide">Recent</div>
-                    <div className="space-y-1">
-                        <div className="group flex items-center gap-3 px-2 py-1.5 text-sm text-[#172B4D] hover:bg-[#EBECF0] rounded-[3px] cursor-pointer transition-colors">
-                            <div className="w-4 h-4 bg-purple-100 rounded-[2px] flex items-center justify-center text-[10px] text-purple-600 font-bold">E</div>
-                            <span className="text-sm truncate">Collect requests</span>
-                        </div>
-                    </div>
-                </div>
+                {/* Recent Section - to be populated dynamically */}
+                <div />
             </nav>
 
             <div className="p-4 border-t border-[var(--border)]">
-                <div className="flex items-center gap-2 text-sm text-[var(--muted-foreground)] mb-3 px-2">
+                <div className="flex items-center gap-2 text-sm text-[var(--muted-foreground)] mb-3 px-2 cursor-pointer hover:text-[#0052cc] transition-colors">
                     <Settings size={16} />
                     <span>Project settings</span>
                 </div>
@@ -102,14 +232,20 @@ export function Sidebar({ className }: { className?: string }) {
                     <span>Log out</span>
                 </button>
             </div>
+
+            <CreateProjectModal
+                isOpen={isCreateProjectModalOpen}
+                onClose={() => setIsCreateProjectModalOpen(false)}
+            />
         </div >
     )
 }
 
-function NavItem({ href, icon, label, active, small }: { href: string; icon: React.ReactNode; label: string; active?: boolean; small?: boolean }) {
+function NavItem({ href, icon, label, active, small, onClick }: { href: string; icon: React.ReactNode; label: string; active?: boolean; small?: boolean; onClick?: () => void }) {
     return (
         <Link
             href={href}
+            onClick={onClick}
             className={cn(
                 "flex items-center gap-3 px-2 py-2 text-sm font-medium rounded-[3px] transition-colors",
                 active

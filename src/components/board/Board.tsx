@@ -3,150 +3,124 @@
 import { useState, useEffect } from "react"
 import { DragDropContext, DropResult, DragStart } from "@hello-pangea/dnd"
 import { Search, Filter, ChevronDown, UserPlus, MoreHorizontal } from "lucide-react"
+import { IssueTypeIcon } from "@/components/ui/issue-type-icon"
 import { Column } from "./Column"
 import { ColumnType, Issue, IssueStatus } from "@/types"
+import { CreateIssueModal } from "@/components/issue/CreateIssueModal"
+import { IssueDetails } from "@/components/issue/IssueDetails"
 
-const MOCK_DATA: Record<string, Issue[]> = {
-    TODO: [
-        { id: "JIRA-1", title: "Set up project repository", status: "TODO", priority: "HIGH", assignee: { name: "Jenil" } },
-        { id: "JIRA-2", title: "Design authentication flow", status: "TODO", priority: "MEDIUM" },
-    ],
-    IN_PROGRESS: [
-        { id: "JIRA-3", title: "Implement Sidebar component", status: "IN_PROGRESS", priority: "HIGH", assignee: { name: "Antigravity" } },
-    ],
-    IN_REVIEW: [],
-    IN_TESTING: [
-        { id: "JIRA-4", title: "Initialize Next.js app", status: "IN_TESTING", priority: "LOW" },
-    ],
-    DONE: [],
-}
+import { useProject } from "@/context/ProjectContext"
 
 interface BoardProps {
     onIssueClick?: (issue: Issue) => void
 }
 
 export function Board({ onIssueClick }: BoardProps) {
-    const [enabled, setEnabled] = useState(false)
-    const [columns, setColumns] = useState(MOCK_DATA)
+    const { issues, columns, moveIssue } = useProject()
+    const [boardColumns, setBoardColumns] = useState<ColumnType[]>([])
+    const [isDragging, setIsDragging] = useState(false)
     const [draggedFromStatus, setDraggedFromStatus] = useState<IssueStatus | null>(null)
+    const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null)
 
     useEffect(() => {
-        const animation = requestAnimationFrame(() => setEnabled(true))
-        return () => {
-            cancelAnimationFrame(animation)
-            setEnabled(false)
-        }
-    }, [])
+        console.log("[Board] Initializing columns. issues count:", issues.length, "columns count:", columns.length);
+        console.log("[Board] Current issues:", issues);
+        console.log("[Board] Current columns:", columns);
+
+        const cols = columns.map(col => {
+            const filteredIssues = issues.filter(issue => {
+                const matchesColumnId = issue.boardColumnId === col.id;
+                const matchesStatus = issue.status === col.id;
+                return matchesColumnId || matchesStatus;
+            });
+            console.log(`[Board] Column ${col.name} (id: ${col.id}) has ${filteredIssues.length} issues`);
+            return {
+                id: col.id,
+                title: col.name,
+                issues: filteredIssues
+            };
+        });
+        setBoardColumns(cols)
+    }, [issues, columns])
 
     const onDragStart = (start: DragStart) => {
+        setIsDragging(true)
         setDraggedFromStatus(start.source.droppableId as IssueStatus)
     }
 
     const onDragEnd = (result: DropResult) => {
+        setIsDragging(false)
         setDraggedFromStatus(null)
-        if (!result.destination) return
 
-        const { source, destination } = result
+        const { destination, source, draggableId } = result
+        if (!destination) return
+        if (destination.droppableId === source.droppableId && destination.index === source.index) return
 
-        // Enforce workflow: Only allow moving to DONE from IN_TESTING
-        if (destination.droppableId === "DONE" && source.droppableId !== "IN_TESTING") {
-            return
-        }
-
-        if (source.droppableId === destination.droppableId) {
-            const columnId = source.droppableId
-            const items = Array.from(columns[columnId])
-            const [reorderedItem] = items.splice(source.index, 1)
-            items.splice(destination.index, 0, reorderedItem)
-
-            setColumns({
-                ...columns,
-                [columnId]: items,
-            })
-        } else {
-            const sourceColumn = Array.from(columns[source.droppableId])
-            const destColumn = Array.from(columns[destination.droppableId])
-            const [movedItem] = sourceColumn.splice(source.index, 1)
-
-            movedItem.status = destination.droppableId as any
-
-            destColumn.splice(destination.index, 0, movedItem)
-
-            setColumns({
-                ...columns,
-                [source.droppableId]: sourceColumn,
-                [destination.droppableId]: destColumn,
-            })
-        }
+        moveIssue(source.droppableId as IssueStatus, destination.droppableId as IssueStatus, source.index, destination.index)
     }
 
-    const [searchQuery, setSearchQuery] = useState("")
-
-    if (!enabled) {
-        return (
-            <div className="flex h-full items-start gap-6 p-6">
-                {Object.entries(columns).map(([id, issues]) => (
-                    <Column key={id} column={{ id: id as any, title: id.replace('_', ' '), issues }} onIssueClick={onIssueClick} isDragEnabled={false} />
-                ))}
-            </div>
-        )
+    const handleIssueClick = (issue: Issue) => {
+        if (selectedIssue?.id === issue.id) {
+            setSelectedIssue(null)
+            return
+        }
+        setSelectedIssue(issue)
     }
 
     return (
-        <div className="flex flex-col h-full bg-white">
-            {/* Board Toolbar */}
-            <div className="flex items-center justify-between px-6 py-4">
-                <div className="flex items-center gap-4">
-                    <div className="relative">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-[var(--muted-foreground)]" />
+        <div className="flex flex-col h-full bg-white relative">
+            <div className="px-6 py-4">
+                <div className="flex items-center justify-between mb-6">
+                    <h1 className="text-xl font-semibold text-[#172B4D]">Kanban board</h1>
+                </div>
+
+                <div className="flex items-center gap-4 mb-6">
+                    <div className="relative flex-1 max-w-sm">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                         <input
                             type="text"
                             placeholder="Search board"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="h-9 w-40 sm:w-64 pl-9 pr-4 rounded-[3px] border border-[var(--input)] bg-[var(--background)] text-sm focus:outline-none focus:ring-2 focus:ring-[#0052cc] transition-all hover:bg-gray-50"
+                            className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-[3px] text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                         />
                     </div>
-                    <div className="flex -space-x-2">
-                        <div className="w-8 h-8 rounded-full bg-blue-500 border-2 border-white flex items-center justify-center text-white text-xs font-bold">JD</div>
-                        <div className="w-8 h-8 rounded-full bg-[#0052cc] border-2 border-white flex items-center justify-center text-white text-xs font-bold">J</div>
+                    <div className="flex -space-x-2 mr-2">
+                        {[1, 2, 3].map(i => (
+                            <div key={i} className="w-8 h-8 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600">
+                                {String.fromCharCode(64 + i)}
+                            </div>
+                        ))}
                     </div>
-
-                    <button className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[var(--foreground)] hover:bg-gray-100 rounded-[3px] transition-colors">
-                        <Filter size={16} className="text-[var(--muted-foreground)]" />
-                        <span>Filter</span>
-                    </button>
+                    <button className="p-2 hover:bg-gray-100 rounded text-gray-600"><UserPlus size={18} /></button>
                 </div>
 
-                <div className="flex items-center gap-3">
-                    <button className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[#172B4D] hover:bg-gray-100 rounded-[3px] transition-colors bg-gray-50">
-                        <span>Group</span>
-                        <ChevronDown size={14} className="text-[var(--muted-foreground)]" />
+                <div className="flex items-center gap-2 mb-4">
+                    <button className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded text-xs font-medium flex items-center gap-2 text-gray-700">
+                        <Filter size={14} /> Quick filters <ChevronDown size={14} />
                     </button>
-                    <button className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[#172B4D] hover:bg-gray-100 rounded-[3px] transition-colors bg-gray-50">
-                        <div className="w-4 h-4 rounded-full border border-gray-400 flex items-center justify-center">
-                            <span className="text-[10px] pb-1">↓</span>
-                        </div>
-                        <span>Import work</span>
-                    </button>
-                    <button className="p-1.5 hover:bg-gray-100 rounded-[3px] text-[var(--muted-foreground)]">
-                        <MoreHorizontal size={20} />
-                    </button>
+                    <div className="h-4 w-[1px] bg-gray-300 mx-2" />
+                    <span className="text-xs text-gray-500">Only my issues</span>
+                    <span className="text-xs text-gray-500">Recently updated</span>
                 </div>
             </div>
 
-            {/* Board Content */}
-            <div className="flex-1 overflow-x-auto overflow-y-hidden px-6 pb-4">
+            <div className="flex-1 overflow-x-auto min-h-0 px-4">
                 <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
-                    <div className="flex h-full items-start gap-6">
-                        <Column column={{ id: "TODO", title: "TO DO", issues: columns["TODO"] }} onIssueClick={onIssueClick} draggedFromStatus={draggedFromStatus} />
-                        <Column column={{ id: "IN_PROGRESS", title: "IN PROGRESS", issues: columns["IN_PROGRESS"] }} onIssueClick={onIssueClick} draggedFromStatus={draggedFromStatus} />
-                        <Column column={{ id: "IN_REVIEW", title: "IN REVIEW", issues: columns["IN_REVIEW"] }} onIssueClick={onIssueClick} draggedFromStatus={draggedFromStatus} />
-                        <Column column={{ id: "IN_TESTING", title: "IN TESTING", issues: columns["IN_TESTING"] }} onIssueClick={onIssueClick} draggedFromStatus={draggedFromStatus} />
-                        <Column column={{ id: "DONE", title: "DONE", issues: columns["DONE"] }} onIssueClick={onIssueClick} draggedFromStatus={draggedFromStatus} />
+                    <div className="flex h-full pb-8">
+                        {boardColumns.map(column => (
+                            <Column
+                                key={column.id}
+                                column={column}
+                                onIssueClick={handleIssueClick}
+                                isDragEnabled={true}
+                                draggedFromStatus={draggedFromStatus}
+                            />
+                        ))}
                     </div>
                 </DragDropContext>
             </div>
+
+            <IssueDetails issue={selectedIssue ? issues.find(i => i.id === selectedIssue.id) || null : null} onClose={() => setSelectedIssue(null)} />
+            <CreateIssueModal />
         </div>
     )
 }
