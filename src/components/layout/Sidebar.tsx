@@ -2,13 +2,14 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { LayoutGrid, Settings, List, Briefcase, Clock, ChevronDown, Plus, LogOut, Layout } from "lucide-react"
+import { LayoutGrid, Settings, List, Briefcase, Clock, ChevronDown, Plus, LogOut, Layout, UserPlus } from "lucide-react"
 import { signOut } from "next-auth/react"
 import { cn } from "@/lib/utils"
 import { JiraLogo } from "@/components/ui/jira-logo"
 import { usePathname } from "next/navigation"
 import { workspaceApi, OrganizationResponse, ProjectResponse, BoardResponse } from "@/features/workspace/api/workspace-api"
 import { CreateProjectModal } from "@/components/workspace/CreateProjectModal"
+import { InviteUserModal } from "@/components/workspace/InviteUserModal"
 
 import { useProject, DEFAULT_COLUMNS } from "@/context/ProjectContext"
 
@@ -22,6 +23,8 @@ export function Sidebar({ className }: { className?: string }) {
     const [hierarchy, setHierarchy] = React.useState<FullHierarchy[]>([])
     const [loading, setLoading] = React.useState(true)
     const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = React.useState(false)
+    const [isInviteModalOpen, setIsInviteModalOpen] = React.useState(false)
+    const [inviteOrg, setInviteOrg] = React.useState<{ id: string, name: string } | null>(null)
 
     React.useEffect(() => {
         const fetchHierarchy = async () => {
@@ -163,8 +166,18 @@ export function Sidebar({ className }: { className?: string }) {
                         ) : hierarchy.length > 0 ? (
                             hierarchy.map(org => (
                                 <div key={org.id} className="space-y-1">
-                                    <div className="px-2 py-1 text-[11px] font-bold text-[#626F86] truncate">
-                                        {org.name}
+                                    <div className="px-2 py-1 text-[11px] font-bold text-[#626F86] flex items-center justify-between group/org">
+                                        <span className="truncate">{org.name}</span>
+                                        <UserPlus
+                                            size={12}
+                                            className="opacity-0 group-hover/org:opacity-100 hover:text-[#0052cc] cursor-pointer transition-opacity"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                // Specific ID requested by USER: 7ef1dab2-e0c7-4d73-8aad-d9f469044eda
+                                                setInviteOrg({ id: "7ef1dab2-e0c7-4d73-8aad-d9f469044eda", name: org.name });
+                                                setIsInviteModalOpen(true);
+                                            }}
+                                        />
                                     </div>
                                     {org.projects.map(project => (
                                         <div key={project.id} className="ml-1">
@@ -237,6 +250,15 @@ export function Sidebar({ className }: { className?: string }) {
                 isOpen={isCreateProjectModalOpen}
                 onClose={() => setIsCreateProjectModalOpen(false)}
             />
+
+            {inviteOrg && (
+                <InviteUserModal
+                    isOpen={isInviteModalOpen}
+                    onClose={() => setIsInviteModalOpen(false)}
+                    orgId={inviteOrg.id}
+                    orgName={inviteOrg.name}
+                />
+            )}
         </div >
     )
 }

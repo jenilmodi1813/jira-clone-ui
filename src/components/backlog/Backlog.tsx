@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
-import { ChevronDown, ChevronRight, MoreHorizontal, Plus, Search, UserCircle, Calendar, ArrowRight, Loader2 } from "lucide-react"
+import { ChevronDown, ChevronRight, MoreHorizontal, Plus, Search, UserCircle, Calendar, ArrowRight, Loader2, ListFilter, X } from "lucide-react"
 import { IssueDetails } from "@/components/issue/IssueDetails"
 import { CreateIssueModal } from "@/components/issue/CreateIssueModal"
+import { BacklogFilterDropdown } from "./BacklogFilterDropdown"
 import { IssueTypeIcon } from "@/components/ui/issue-type-icon"
+import { workspaceApi, OrganizationMemberResponse } from "@/features/workspace/api/workspace-api"
 import { Issue } from "@/types"
 import { cn } from "@/lib/utils"
 
@@ -23,6 +25,32 @@ export function Backlog() {
     const [isCreatingBoard, setIsCreatingBoard] = useState(false)
     const [newBoardName, setNewBoardName] = useState("")
 
+    // Advanced Filter State
+    const [searchQuery, setSearchQuery] = useState("")
+    const [selectedAssignees, setSelectedAssignees] = useState<string[]>([])
+    const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
+    const [selectedPriorities, setSelectedPriorities] = useState<string[]>([])
+    const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false)
+    const [members, setMembers] = useState<OrganizationMemberResponse[]>([])
+    const [isFetchingMembers, setIsFetchingMembers] = useState(false)
+
+    const TARGET_ORG_ID = "7ef1dab2-e0c7-4d73-8aad-d9f469044eda"
+
+    useEffect(() => {
+        const fetchMembers = async () => {
+            setIsFetchingMembers(true)
+            try {
+                const data = await workspaceApi.getOrganizationMembers(TARGET_ORG_ID)
+                setMembers(data)
+            } catch (error) {
+                console.error("Failed to fetch members for filters:", error)
+            } finally {
+                setIsFetchingMembers(false)
+            }
+        }
+        fetchMembers()
+    }, [])
+
     const handleIssueClick = (issue: Issue) => {
         if (selectedIssue?.id === issue.id) {
             setSelectedIssue(null)
@@ -31,8 +59,21 @@ export function Backlog() {
         setSelectedIssue(issue)
     }
 
-    const boardIssues = issues.filter(i => ["IN_PROGRESS", "IN_REVIEW", "IN_TESTING"].includes(i.status))
-    const backlogIssues = issues.filter(i => ["TODO", "DONE"].includes(i.status))
+    const filterIssues = (issueList: Issue[]) => {
+        return issueList.filter(issue => {
+            const matchesSearch = !searchQuery || issue.title.toLowerCase().includes(searchQuery.toLowerCase())
+            const matchesAssignee = selectedAssignees.length === 0 || (issue.assigneeId && selectedAssignees.includes(issue.assigneeId))
+            const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(issue.status)
+            const matchesPriority = selectedPriorities.length === 0 || selectedPriorities.includes(issue.priority)
+
+            return matchesSearch && matchesAssignee && matchesStatus && matchesPriority
+        })
+    }
+
+    const boardIssues = filterIssues(issues.filter(i => ["IN_PROGRESS", "IN_REVIEW", "IN_TESTING"].includes(i.status)))
+    const backlogIssues = filterIssues(issues.filter(i => ["TODO", "DONE"].includes(i.status)))
+
+    const activeFilterCount = selectedAssignees.length + selectedStatuses.length + selectedPriorities.length
 
     const handleCreateIssue = async () => {
         if (!newIssueTitle.trim() || !currentProject) {
@@ -118,21 +159,83 @@ export function Backlog() {
 
     return (
         <div className="flex flex-col h-full bg-white relative">
-            {/* Backlog Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            {/* Backlog Header (Filters) */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-white z-20">
                 <div className="flex items-center gap-2">
-                    <div className="relative">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-[var(--muted-foreground)]" />
-                        <input
-                            type="text"
-                            placeholder="Search backlog"
-                            className="h-9 w-40 sm:w-64 pl-9 pr-4 rounded-[3px] border border-[var(--input)] bg-[var(--background)] text-sm focus:outline-none focus:ring-2 focus:ring-[#0052cc] transition-all hover:bg-gray-50"
+                    <div className="relative group">
+                        <button
+                            onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
+                            className={cn(
+                                "flex items-center gap-2 px-3 py-1.5 rounded-[3px] border text-sm font-medium transition-all",
+                                isFilterDropdownOpen || activeFilterCount > 0
+                                    ? "border-[#0052cc] bg-[#E6EFFC] text-[#0052cc]"
+                                    : "border-gray-300 hover:bg-gray-50 text-[#44546F]"
+                            )}
+                        >
+                            <ListFilter size={16} />
+                            <span>Filter</span>
+                            {activeFilterCount > 0 && (
+                                <span className="ml-1 bg-[#0052cc] text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                                    {activeFilterCount}
+                                </span>
+                            )}
+                        </button>
+
+                        <BacklogFilterDropdown
+                            isOpen={isFilterDropdownOpen}
+                            onClose={() => setIsFilterDropdownOpen(false)}
+                            members={members}
+                            selectedAssignees={selectedAssignees}
+                            setSelectedAssignees={setSelectedAssignees}
+                            selectedPriorities={selectedPriorities}
+                            setSelectedPriorities={setSelectedPriorities}
+                            selectedStatuses={selectedStatuses}
+                            setSelectedStatuses={setSelectedStatuses}
                         />
                     </div>
+
+                    <div className="h-4 w-px bg-gray-200 mx-2" />
+
+                    <div className="relative">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search backlog"
+                            className="h-9 w-40 sm:w-64 pl-9 pr-4 rounded-[3px] border border-gray-200 bg-white text-sm focus:outline-none focus:border-[#0052cc] focus:ring-1 focus:ring-[#0052cc] transition-all"
+                        />
+                        {searchQuery && (
+                            <button
+                                onClick={() => setSearchQuery("")}
+                                className="absolute right-2 top-2.5 text-gray-400 hover:text-gray-600"
+                            >
+                                <X size={14} />
+                            </button>
+                        )}
+                    </div>
                 </div>
+
                 <div className="flex items-center gap-2">
+                    {(activeFilterCount > 0 || searchQuery) && (
+                        <button
+                            onClick={() => {
+                                setSearchQuery("")
+                                setSelectedAssignees([])
+                                setSelectedStatuses([])
+                                setSelectedPriorities([])
+                            }}
+                            className="text-xs font-semibold text-[#0052cc] hover:underline mr-4"
+                        >
+                            Clear all filters
+                        </button>
+                    )}
                     <div className="flex -space-x-2 mr-2">
-                        <div className="w-8 h-8 rounded-full bg-blue-500 border-2 border-white flex items-center justify-center text-white text-xs font-bold">JD</div>
+                        {members.slice(0, 3).map(member => (
+                            <div key={member.userId} className="w-8 h-8 rounded-full bg-blue-500 border-2 border-white flex items-center justify-center text-white text-[10px] font-bold" title={member.displayName || member.email}>
+                                {(member.displayName || member.email).charAt(0).toUpperCase()}
+                            </div>
+                        ))}
                     </div>
                 </div>
             </div>
