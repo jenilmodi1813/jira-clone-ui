@@ -3,6 +3,17 @@ export interface OrganizationResponse {
     name: string;
 }
 
+export interface OrganizationMemberResponse {
+    userId: string;
+    email: string;
+    displayName: string;
+    avatarUrl: string | null;
+    orgRole: string;
+    jobTitle: string | null;
+    department: string | null;
+    joinedAt: string;
+}
+
 export interface ProjectResponse {
     id: string;
     name: string;
@@ -86,6 +97,12 @@ export const workspaceApi = {
         return data;
     },
 
+    getOrganizationMembers: async (orgId: string): Promise<OrganizationMemberResponse[]> => {
+        const response = await fetch(`/api/organizations/${orgId}/members`);
+        if (!response.ok) throw new Error(`Failed to fetch members for organization ${orgId}`);
+        return response.json();
+    },
+
     getIssueById: async (id: string): Promise<Issue> => {
         const response = await fetch(`/api/issues/${id}`);
         if (!response.ok) throw new Error(`Failed to fetch issue detail for ${id}`);
@@ -151,7 +168,16 @@ export const workspaceApi = {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email }),
         });
-        if (!response.ok) throw new Error("Failed to invite user");
+        if (!response.ok) {
+            let errorMessage = "Failed to invite user";
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.message || errorData.error || errorMessage;
+            } catch (e) {
+                // If not JSON, try text
+            }
+            throw new Error(errorMessage);
+        }
     },
 
     createProject: async (project: CreateProjectRequest): Promise<ProjectResponse> => {
@@ -184,6 +210,38 @@ export const workspaceApi = {
         });
         if (!response.ok) throw new Error(`Failed to move issue ${issueId}`);
         return response.json();
+    },
+
+    acceptInvite: async (token: string): Promise<void> => {
+        const response = await fetch(`/api/organizations/invites/accept?token=${token}`, {
+            method: "POST",
+        });
+        if (!response.ok) {
+            let errorMessage = "Failed to accept invite";
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.message || errorData.error || errorMessage;
+            } catch (e) {
+                // Not JSON
+            }
+            throw new Error(errorMessage);
+        }
+    },
+
+    rejectInvite: async (token: string): Promise<void> => {
+        const response = await fetch(`/api/organizations/invites/reject?token=${token}`, {
+            method: "POST",
+        });
+        if (!response.ok) {
+            let errorMessage = "Failed to reject invite";
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.message || errorData.error || errorMessage;
+            } catch (e) {
+                // Not JSON
+            }
+            throw new Error(errorMessage);
+        }
     }
 };
 

@@ -8,6 +8,7 @@ import { Column } from "./Column"
 import { ColumnType, Issue, IssueStatus } from "@/types"
 import { CreateIssueModal } from "@/components/issue/CreateIssueModal"
 import { IssueDetails } from "@/components/issue/IssueDetails"
+import { InviteUserModal } from "@/components/workspace/InviteUserModal"
 
 import { useProject } from "@/context/ProjectContext"
 
@@ -21,6 +22,7 @@ export function Board({ onIssueClick }: BoardProps) {
     const [isDragging, setIsDragging] = useState(false)
     const [draggedFromStatus, setDraggedFromStatus] = useState<IssueStatus | null>(null)
     const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null)
+    const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
 
     useEffect(() => {
         console.log("[Board] Initializing columns. issues count:", issues.length, "columns count:", columns.length);
@@ -90,7 +92,13 @@ export function Board({ onIssueClick }: BoardProps) {
                             </div>
                         ))}
                     </div>
-                    <button className="p-2 hover:bg-gray-100 rounded text-gray-600"><UserPlus size={18} /></button>
+                    <button
+                        onClick={() => setIsInviteModalOpen(true)}
+                        className="p-2 hover:bg-gray-100 rounded text-gray-600 transition-colors"
+                        title="Invite member"
+                    >
+                        <UserPlus size={18} />
+                    </button>
                 </div>
 
                 <div className="flex items-center gap-2 mb-4">
@@ -121,6 +129,13 @@ export function Board({ onIssueClick }: BoardProps) {
 
             <IssueDetails issue={selectedIssue ? issues.find(i => i.id === selectedIssue.id) || null : null} onClose={() => setSelectedIssue(null)} />
             <CreateIssueModal />
+
+            <InviteUserModal
+                isOpen={isInviteModalOpen}
+                onClose={() => setIsInviteModalOpen(false)}
+                orgId="7ef1dab2-e0c7-4d73-8aad-d9f469044eda"
+                orgName="Workspace"
+            />
         </div>
     )
 }

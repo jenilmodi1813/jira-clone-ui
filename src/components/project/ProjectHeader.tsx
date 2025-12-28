@@ -1,15 +1,18 @@
 "use client"
 
 import Link from "next/link"
+import { useState } from "react"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { ChevronRight, Share2, Zap, Maximize2, MoreHorizontal, Layout, List, Calendar, FileText, BarChart2, Code } from "lucide-react"
+import { InviteUserModal } from "@/components/workspace/InviteUserModal"
 
 import { useProject } from "@/context/ProjectContext"
 
 export function ProjectHeader() {
     const pathname = usePathname()
     const { currentProject } = useProject()
+    const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
 
     // Fallback to params or context
     const projectKey = currentProject?.projectKey || "JIRA"
@@ -62,7 +65,10 @@ export function ProjectHeader() {
                         <div className="w-8 h-8 rounded-full bg-purple-500 border-2 border-white flex items-center justify-center text-white text-xs font-bold">AM</div>
                         <div className="w-8 h-8 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-gray-500 text-xs font-bold">+3</div>
                     </div>
-                    <button className="ml-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-[3px] transition-colors">
+                    <button
+                        onClick={() => setIsInviteModalOpen(true)}
+                        className="ml-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-[3px] transition-colors"
+                    >
                         Add people
                     </button>
                 </div>
@@ -83,6 +89,13 @@ export function ProjectHeader() {
                     <MoreHorizontal size={14} />
                 </button>
             </div>
+
+            <InviteUserModal
+                isOpen={isInviteModalOpen}
+                onClose={() => setIsInviteModalOpen(false)}
+                orgId="7ef1dab2-e0c7-4d73-8aad-d9f469044eda"
+                orgName="Workspace"
+            />
         </div>
     )
 }
