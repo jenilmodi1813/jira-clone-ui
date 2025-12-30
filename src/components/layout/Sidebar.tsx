@@ -7,9 +7,11 @@ import { signOut } from "next-auth/react"
 import { cn } from "@/lib/utils"
 import { JiraLogo } from "@/components/ui/jira-logo"
 import { usePathname } from "next/navigation"
-import { workspaceApi, OrganizationResponse, ProjectResponse, BoardResponse } from "@/features/workspace/api/workspace-api"
+import { workspaceApi } from "@/features/workspace/api/workspace-api";
+import type { OrganizationResponse, ProjectResponse, BoardResponse } from "@/features/workspace/api/workspace-api";
 import { CreateProjectModal } from "@/components/workspace/CreateProjectModal"
 import { InviteUserModal } from "@/components/workspace/InviteUserModal"
+import { Issue } from "@/types"
 
 import { useProject, DEFAULT_COLUMNS } from "@/context/ProjectContext"
 
@@ -49,7 +51,7 @@ export function Sidebar({ className }: { className?: string }) {
                                 if (!projectId) return project;
 
                                 let board = null;
-                                let issues = [];
+                                let issues: Issue[] = [];
                                 try {
                                     // Always fetch issues for the project
                                     issues = await workspaceApi.getIssuesByProject(projectId);

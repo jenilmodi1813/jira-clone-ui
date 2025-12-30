@@ -2,13 +2,15 @@
 
 import { useState, useEffect } from "react"
 import { DragDropContext, DropResult, DragStart } from "@hello-pangea/dnd"
-import { Search, Filter, ChevronDown, UserPlus, MoreHorizontal } from "lucide-react"
+import { Search, Filter, ChevronDown, UserPlus, MoreHorizontal, Loader2 } from "lucide-react"
 import { IssueTypeIcon } from "@/components/ui/issue-type-icon"
 import { Column } from "./Column"
 import { ColumnType, Issue, IssueStatus } from "@/types"
 import { CreateIssueModal } from "@/components/issue/CreateIssueModal"
 import { IssueDetails } from "@/components/issue/IssueDetails"
 import { InviteUserModal } from "@/components/workspace/InviteUserModal"
+import { workspaceApi, OrganizationMemberResponse } from "@/features/workspace/api/workspace-api"
+import { cn } from "@/lib/utils"
 
 import { useProject } from "@/context/ProjectContext"
 
@@ -17,25 +19,58 @@ interface BoardProps {
 }
 
 export function Board({ onIssueClick }: BoardProps) {
-    const { issues, columns, moveIssue } = useProject()
+    const {
+        issues,
+        columns,
+        moveIssue,
+        searchQuery,
+        setSearchQuery,
+        selectedAssigneeIds,
+        toggleAssigneeFilter,
+        currentOrg
+    } = useProject()
+
     const [boardColumns, setBoardColumns] = useState<ColumnType[]>([])
     const [isDragging, setIsDragging] = useState(false)
     const [draggedFromStatus, setDraggedFromStatus] = useState<IssueStatus | null>(null)
     const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null)
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
 
-    useEffect(() => {
-        console.log("[Board] Initializing columns. issues count:", issues.length, "columns count:", columns.length);
-        console.log("[Board] Current issues:", issues);
-        console.log("[Board] Current columns:", columns);
+    const [members, setMembers] = useState<OrganizationMemberResponse[]>([])
+    const [isFetchingMembers, setIsFetchingMembers] = useState(false)
 
+    useEffect(() => {
+        const fetchMembers = async () => {
+            setIsFetchingMembers(true)
+            try {
+                const targetOrgId = currentOrg?.id || "7ef1dab2-e0c7-4d73-8aad-d9f469044eda"
+                const allMembers = await workspaceApi.getOrganizationMembers(targetOrgId)
+                setMembers(allMembers)
+            } catch (error) {
+                console.error("Failed to fetch board members:", error)
+            } finally {
+                setIsFetchingMembers(false)
+            }
+        }
+        fetchMembers()
+    }, [currentOrg?.id])
+
+    useEffect(() => {
         const cols = columns.map(col => {
             const filteredIssues = issues.filter(issue => {
-                const matchesColumnId = issue.boardColumnId === col.id;
-                const matchesStatus = issue.status === col.id;
-                return matchesColumnId || matchesStatus;
+                const matchesColumn = issue.boardColumnId === col.id || issue.status === col.id;
+
+                // Text search filter
+                const matchesSearch = !searchQuery ||
+                    issue.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    issue.description?.toLowerCase().includes(searchQuery.toLowerCase());
+
+                // Assignee filter
+                const matchesAssignee = selectedAssigneeIds.length === 0 ||
+                    (issue.assigneeId && selectedAssigneeIds.includes(issue.assigneeId));
+
+                return matchesColumn && matchesSearch && matchesAssignee;
             });
-            console.log(`[Board] Column ${col.name} (id: ${col.id}) has ${filteredIssues.length} issues`);
             return {
                 id: col.id,
                 title: col.name,
@@ -43,7 +78,7 @@ export function Board({ onIssueClick }: BoardProps) {
             };
         });
         setBoardColumns(cols)
-    }, [issues, columns])
+    }, [issues, columns, searchQuery, selectedAssigneeIds])
 
     const onDragStart = (start: DragStart) => {
         setIsDragging(true)
@@ -81,16 +116,40 @@ export function Board({ onIssueClick }: BoardProps) {
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                         <input
                             type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="Search board"
                             className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-[3px] text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                         />
                     </div>
-                    <div className="flex -space-x-2 mr-2">
-                        {[1, 2, 3].map(i => (
-                            <div key={i} className="w-8 h-8 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600">
-                                {String.fromCharCode(64 + i)}
+                    <div className="flex -space-x-1.5 mr-2 ml-1">
+                        {isFetchingMembers ? (
+                            <Loader2 size={16} className="animate-spin text-gray-400" />
+                        ) : (
+                            members.slice(0, 5).map(member => {
+                                const isActive = selectedAssigneeIds.includes(member.userId)
+                                return (
+                                    <div
+                                        key={member.userId}
+                                        onClick={() => toggleAssigneeFilter(member.userId)}
+                                        title={member.displayName || member.email}
+                                        className={cn(
+                                            "w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-[10px] font-bold cursor-pointer hover:-translate-y-1 transition-all z-0 hover:z-10",
+                                            isActive
+                                                ? "bg-blue-600 text-white ring-2 ring-blue-400 ring-offset-1"
+                                                : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                                        )}
+                                    >
+                                        {(member.displayName || member.email).charAt(0).toUpperCase()}
+                                    </div>
+                                )
+                            })
+                        )}
+                        {members.length > 5 && (
+                            <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500">
+                                +{members.length - 5}
                             </div>
-                        ))}
+                        )}
                     </div>
                     <button
                         onClick={() => setIsInviteModalOpen(true)}
@@ -106,8 +165,13 @@ export function Board({ onIssueClick }: BoardProps) {
                         <Filter size={14} /> Quick filters <ChevronDown size={14} />
                     </button>
                     <div className="h-4 w-[1px] bg-gray-300 mx-2" />
-                    <span className="text-xs text-gray-500">Only my issues</span>
-                    <span className="text-xs text-gray-500">Recently updated</span>
+                    <span
+                        onClick={() => setSearchQuery("")}
+                        className="text-xs text-gray-500 cursor-pointer hover:text-blue-600 transition-colors"
+                    >
+                        Only my issues
+                    </span>
+                    <span className="text-xs text-gray-500 cursor-default">Recently updated</span>
                 </div>
             </div>
 
@@ -139,3 +203,4 @@ export function Board({ onIssueClick }: BoardProps) {
         </div>
     )
 }
+

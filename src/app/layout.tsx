@@ -21,8 +21,8 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="en">
-            <body className={publicSans.className}>
+        <html lang="en" suppressHydrationWarning>
+            <body className={publicSans.className} suppressHydrationWarning>
                 <Providers>
                     {children}
                 </Providers>
