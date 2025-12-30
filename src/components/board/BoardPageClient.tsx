@@ -6,9 +6,10 @@ import { BoardFilters } from "./BoardFilters"
 import { CreateIssueModal } from "../issue/CreateIssueModal"
 import { IssueDetails } from "../issue/IssueDetails"
 import { Issue } from "@/types"
+import { useProject } from "@/context/ProjectContext"
 
 export function BoardPageClient({ projectId }: { projectId: string }) {
-    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+    const { setIsCreateModalOpen } = useProject()
     const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null)
 
     return (
@@ -34,7 +35,7 @@ export function BoardPageClient({ projectId }: { projectId: string }) {
                 <Board onIssueClick={setSelectedIssue} />
             </div>
 
-            <CreateIssueModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} />
+            <CreateIssueModal />
             <IssueDetails issue={selectedIssue} onClose={() => setSelectedIssue(null)} />
         </div>
     )

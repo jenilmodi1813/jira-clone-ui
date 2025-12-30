@@ -1,6 +1,6 @@
 "use client"
 
-import React, { createContext, useContext, useState } from "react"
+import React, { createContext, useContext, useState, useRef } from "react"
 import { Issue, IssueStatus } from "@/types"
 
 interface ProjectContextType {
@@ -24,6 +24,11 @@ interface ProjectContextType {
     setIsCreateModalOpen: (open: boolean) => void
     users: Record<string, { fullName?: string, name?: string, avatar?: string }>
     getUserProfile: (userId: string) => Promise<void>
+    searchQuery: string
+    setSearchQuery: (query: string) => void
+    selectedAssigneeIds: string[]
+    setSelectedAssigneeIds: (ids: string[]) => void
+    toggleAssigneeFilter: (userId: string) => void
 }
 
 const INITIAL_ISSUES: Issue[] = []
@@ -44,18 +49,33 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const [currentProject, setCurrentProject] = useState<{ id: string, name: string, projectKey: string } | null>(null)
     const [currentBoard, setCurrentBoard] = useState<{ id: string, name: string, type: string } | null>(null)
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
-    const [users, setUsersCache] = useState<Record<string, { fullName?: string, name?: string, avatar?: string }>>({})
+    const [users, setUsersCache] = useState<Record<string, { fullName?: string, name?: string, avatar?: string }>>({});
+    const loadingUserIds = useRef<Set<string>>(new Set());
 
     const [currentOrg, setCurrentOrg] = useState<{ id: string, name: string } | null>(null)
+    const [searchQuery, setSearchQuery] = useState("")
+    const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<string[]>([])
+
+    const toggleAssigneeFilter = (userId: string) => {
+        setSelectedAssigneeIds(prev =>
+            prev.includes(userId)
+                ? prev.filter(id => id !== userId)
+                : [...prev, userId]
+        )
+    }
 
     const getUserProfile = async (userId: string) => {
-        if (!userId || users[userId]) return
+        if (!userId || users[userId]) return;
+        if (loadingUserIds.current.has(userId)) return; // already fetching
+        loadingUserIds.current.add(userId);
         try {
-            const { workspaceApi } = await import("@/features/workspace/api/workspace-api")
-            const profile = await workspaceApi.getProfileById(userId)
-            setUsersCache(prev => ({ ...prev, [userId]: profile }))
+            const { workspaceApi } = await import("@/features/workspace/api/workspace-api");
+            const profile = await workspaceApi.getProfileById(userId);
+            setUsersCache(prev => ({ ...prev, [userId]: profile }));
         } catch (error) {
-            console.error(`Failed to fetch profile for ${userId}:`, error)
+            console.error(`Failed to fetch profile for ${userId}:`, error);
+        } finally {
+            loadingUserIds.current.delete(userId);
         }
     }
 
@@ -158,7 +178,12 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             isCreateModalOpen,
             setIsCreateModalOpen,
             users,
-            getUserProfile
+            getUserProfile,
+            searchQuery,
+            setSearchQuery,
+            selectedAssigneeIds,
+            setSelectedAssigneeIds,
+            toggleAssigneeFilter
         }}>
             {children}
         </ProjectContext.Provider>

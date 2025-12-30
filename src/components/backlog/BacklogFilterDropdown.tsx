@@ -54,7 +54,7 @@ export function BacklogFilterDropdown({
     ]
 
     const getOptions = () => {
-        let options: any[] = []
+        let options: { id: string; label: string; color?: string; avatar?: string | null }[] = []
         if (activeCategory === "Priority") {
             options = priorityOptions
         } else if (activeCategory === "Status") {

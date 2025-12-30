@@ -58,7 +58,7 @@ function IssueCardContent({ issue }: { issue: Issue }) {
     }, [issue.assigneeId, users, getUserProfile])
 
     const resolvedAssignee = issue.assignee || (issue.assigneeId ? users[issue.assigneeId] : undefined)
-    const assigneeName = resolvedAssignee?.fullName || resolvedAssignee?.name || "Unassigned"
+    const assigneeName = (resolvedAssignee as any)?.fullName || (resolvedAssignee as any)?.name || "Unassigned"
 
     return (
         <>
