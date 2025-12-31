@@ -14,42 +14,35 @@ import { cn } from "@/lib/utils"
 import { useProject } from "@/context/ProjectContext"
 
 export function Backlog() {
-    const { issues, currentBoard, currentProject, addIssue, columns, isCreateModalOpen, setIsCreateModalOpen } = useProject()
+    const {
+        issues,
+        currentBoard,
+        currentProject,
+        addIssue,
+        columns,
+        isCreateModalOpen,
+        setIsCreateModalOpen,
+        searchQuery,
+        setSearchQuery,
+        selectedAssigneeIds,
+        toggleAssigneeFilter,
+        selectedStatusIds,
+        selectedPriorityIds,
+        clearAllFilters,
+        activeFilterCount,
+        members,
+        isFetchingMembers
+    } = useProject()
     const { data: session } = useSession()
     const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null)
     const [isCreatingIssue, setIsCreatingIssue] = useState(false)
     const [newIssueTitle, setNewIssueTitle] = useState("")
     const [isSubmittingIssue, setIsSubmittingIssue] = useState(false)
 
-    // New state for board creation
+    // UI state only
     const [isCreatingBoard, setIsCreatingBoard] = useState(false)
     const [newBoardName, setNewBoardName] = useState("")
-
-    // Advanced Filter State
-    const [searchQuery, setSearchQuery] = useState("")
-    const [selectedAssignees, setSelectedAssignees] = useState<string[]>([])
-    const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
-    const [selectedPriorities, setSelectedPriorities] = useState<string[]>([])
     const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false)
-    const [members, setMembers] = useState<OrganizationMemberResponse[]>([])
-    const [isFetchingMembers, setIsFetchingMembers] = useState(false)
-
-    const TARGET_ORG_ID = "7ef1dab2-e0c7-4d73-8aad-d9f469044eda"
-
-    useEffect(() => {
-        const fetchMembers = async () => {
-            setIsFetchingMembers(true)
-            try {
-                const data = await workspaceApi.getOrganizationMembers(TARGET_ORG_ID)
-                setMembers(data)
-            } catch (error) {
-                console.error("Failed to fetch members for filters:", error)
-            } finally {
-                setIsFetchingMembers(false)
-            }
-        }
-        fetchMembers()
-    }, [])
 
     const handleIssueClick = (issue: Issue) => {
         if (selectedIssue?.id === issue.id) {
@@ -61,19 +54,63 @@ export function Backlog() {
 
     const filterIssues = (issueList: Issue[]) => {
         return issueList.filter(issue => {
-            const matchesSearch = !searchQuery || issue.title.toLowerCase().includes(searchQuery.toLowerCase())
-            const matchesAssignee = selectedAssignees.length === 0 || (issue.assigneeId && selectedAssignees.includes(issue.assigneeId))
-            const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(issue.status)
-            const matchesPriority = selectedPriorities.length === 0 || selectedPriorities.includes(issue.priority)
+            const matchesSearch = !searchQuery ||
+                issue.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                issue.description?.toLowerCase().includes(searchQuery.toLowerCase())
+
+            const matchesAssignee = selectedAssigneeIds.length === 0 ||
+                (issue.assigneeId && selectedAssigneeIds.includes(issue.assigneeId))
+
+            // Robust status matching: resolve issue status string to its column ID
+            const issueStatusId = columns.find(c =>
+                c.id === issue.status ||
+                c.name.toUpperCase().replace(/\s+/g, '_') === (issue.status || "").toUpperCase().replace(/\s+/g, '_')
+            )?.id || issue.status;
+
+            const matchesStatus = selectedStatusIds.length === 0 ||
+                selectedStatusIds.includes(issueStatusId) ||
+                (issue.boardColumnId && selectedStatusIds.includes(issue.boardColumnId))
+
+            const matchesPriority = selectedPriorityIds.length === 0 ||
+                selectedPriorityIds.includes(issue.priority)
 
             return matchesSearch && matchesAssignee && matchesStatus && matchesPriority
         })
     }
 
-    const boardIssues = filterIssues(issues.filter(i => ["IN_PROGRESS", "IN_REVIEW", "IN_TESTING"].includes(i.status)))
-    const backlogIssues = filterIssues(issues.filter(i => ["TODO", "DONE"].includes(i.status)))
+    const getNormalizedStatus = (statusId: string) => {
+        const column = columns.find(c => c.id === statusId)
+        if (!column) return statusId.toUpperCase().replace(/\s+/g, '_')
+        return column.name.toUpperCase().replace(/\s+/g, '_')
+    }
 
-    const activeFilterCount = selectedAssignees.length + selectedStatuses.length + selectedPriorities.length
+    const boardIssues = filterIssues(issues.filter(i => {
+        // Find which column this issue belongs to
+        const columnIndex = columns.findIndex(c => c.id === i.status || c.id === i.boardColumnId)
+
+        // Board issues are those in middle columns (not first, not last)
+        // If there's only 1 or 2 columns, fallback to status name matching
+        if (columns.length <= 2) {
+            const status = getNormalizedStatus(i.status)
+            return ["IN_PROGRESS", "IN_REVIEW", "IN_TESTING"].includes(status)
+        }
+
+        return columnIndex > 0 && columnIndex < columns.length - 1
+    }))
+
+    const backlogIssues = filterIssues(issues.filter(i => {
+        const columnIndex = columns.findIndex(c => c.id === i.status || c.id === i.boardColumnId)
+
+        if (columns.length <= 2) {
+            const status = getNormalizedStatus(i.status)
+            return ["TODO", "DONE"].includes(status) || !["IN_PROGRESS", "IN_REVIEW", "IN_TESTING"].includes(status)
+        }
+
+        // Backlog issues are those in the first column or last column (Done)
+        return columnIndex === 0 || columnIndex === columns.length - 1 || columnIndex === -1
+    }))
+
+    // const allFilteredIssues = filterIssues(issues) // This is no longer used directly for rendering lists
 
     const handleCreateIssue = async () => {
         if (!newIssueTitle.trim() || !currentProject) {
@@ -185,12 +222,6 @@ export function Backlog() {
                             isOpen={isFilterDropdownOpen}
                             onClose={() => setIsFilterDropdownOpen(false)}
                             members={members}
-                            selectedAssignees={selectedAssignees}
-                            setSelectedAssignees={setSelectedAssignees}
-                            selectedPriorities={selectedPriorities}
-                            setSelectedPriorities={setSelectedPriorities}
-                            selectedStatuses={selectedStatuses}
-                            setSelectedStatuses={setSelectedStatuses}
                         />
                     </div>
 
@@ -219,23 +250,29 @@ export function Backlog() {
                 <div className="flex items-center gap-2">
                     {(activeFilterCount > 0 || searchQuery) && (
                         <button
-                            onClick={() => {
-                                setSearchQuery("")
-                                setSelectedAssignees([])
-                                setSelectedStatuses([])
-                                setSelectedPriorities([])
-                            }}
+                            onClick={clearAllFilters}
                             className="text-xs font-semibold text-[#0052cc] hover:underline mr-4"
                         >
                             Clear all filters
                         </button>
                     )}
                     <div className="flex -space-x-2 mr-2">
-                        {members.slice(0, 3).map(member => (
-                            <div key={member.userId} className="w-8 h-8 rounded-full bg-blue-500 border-2 border-white flex items-center justify-center text-white text-[10px] font-bold" title={member.displayName || member.email}>
-                                {(member.displayName || member.email).charAt(0).toUpperCase()}
-                            </div>
-                        ))}
+                        {members.slice(0, 5).map(member => {
+                            const isActive = selectedAssigneeIds.includes(member.userId)
+                            return (
+                                <div
+                                    key={member.userId}
+                                    onClick={() => toggleAssigneeFilter(member.userId)}
+                                    className={cn(
+                                        "w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-[10px] font-bold cursor-pointer transition-all hover:-translate-y-1",
+                                        isActive ? "bg-blue-600 text-white z-10" : "bg-blue-500 text-white"
+                                    )}
+                                    title={member.displayName || member.email}
+                                >
+                                    {(member.displayName || member.email).charAt(0).toUpperCase()}
+                                </div>
+                            )
+                        })}
                     </div>
                 </div>
             </div>

@@ -1,7 +1,8 @@
 "use client"
 
-import React, { createContext, useContext, useState, useRef } from "react"
+import React, { createContext, useContext, useState, useRef, useEffect } from "react"
 import { Issue, IssueStatus } from "@/types"
+import { workspaceApi, OrganizationMemberResponse } from "@/features/workspace/api/workspace-api"
 
 interface ProjectContextType {
     issues: Issue[]
@@ -29,6 +30,16 @@ interface ProjectContextType {
     selectedAssigneeIds: string[]
     setSelectedAssigneeIds: (ids: string[]) => void
     toggleAssigneeFilter: (userId: string) => void
+    selectedStatusIds: string[]
+    setSelectedStatusIds: (ids: string[]) => void
+    toggleStatusFilter: (statusId: string) => void
+    selectedPriorityIds: string[]
+    setSelectedPriorityIds: (ids: string[]) => void
+    togglePriorityFilter: (priority: string) => void
+    clearAllFilters: () => void
+    activeFilterCount: number
+    members: OrganizationMemberResponse[]
+    isFetchingMembers: boolean
 }
 
 const INITIAL_ISSUES: Issue[] = []
@@ -55,6 +66,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const [currentOrg, setCurrentOrg] = useState<{ id: string, name: string } | null>(null)
     const [searchQuery, setSearchQuery] = useState("")
     const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<string[]>([])
+    const [selectedStatusIds, setSelectedStatusIds] = useState<string[]>([])
+    const [selectedPriorityIds, setSelectedPriorityIds] = useState<string[]>([])
+
+    const [members, setMembers] = useState<OrganizationMemberResponse[]>([])
+    const [isFetchingMembers, setIsFetchingMembers] = useState(false)
 
     const toggleAssigneeFilter = (userId: string) => {
         setSelectedAssigneeIds(prev =>
@@ -63,6 +79,47 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                 : [...prev, userId]
         )
     }
+
+    const toggleStatusFilter = (statusId: string) => {
+        setSelectedStatusIds(prev =>
+            prev.includes(statusId)
+                ? prev.filter(id => id !== statusId)
+                : [...prev, statusId]
+        )
+    }
+
+    const togglePriorityFilter = (priority: string) => {
+        setSelectedPriorityIds(prev =>
+            prev.includes(priority)
+                ? prev.filter(p => p !== priority)
+                : [...prev, priority]
+        )
+    }
+
+    const clearAllFilters = () => {
+        setSearchQuery("")
+        setSelectedAssigneeIds([])
+        setSelectedStatusIds([])
+        setSelectedPriorityIds([])
+    }
+
+    const activeFilterCount = selectedAssigneeIds.length + selectedStatusIds.length + selectedPriorityIds.length
+
+    useEffect(() => {
+        const fetchMembers = async () => {
+            const orgId = currentOrg?.id || "7ef1dab2-e0c7-4d73-8aad-d9f469044eda"
+            setIsFetchingMembers(true)
+            try {
+                const data = await workspaceApi.getOrganizationMembers(orgId)
+                setMembers(data)
+            } catch (error) {
+                console.error("[ProjectContext] Failed to fetch organization members:", error)
+            } finally {
+                setIsFetchingMembers(false)
+            }
+        }
+        fetchMembers()
+    }, [currentOrg?.id])
 
     const getUserProfile = async (userId: string) => {
         if (!userId || users[userId]) return;
@@ -136,12 +193,16 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         // 2. Backend Call
         try {
             const { workspaceApi } = await import("@/features/workspace/api/workspace-api");
-            await workspaceApi.moveIssue(movedItem.id, destColumnId);
+            const updatedIssue = await workspaceApi.moveIssue(movedItem.id, destColumnId);
+
+            // Sync local state with backend response (e.g. status field might have changed)
+            setIssues(prev => prev.map(i => i.id === updatedIssue.id ? { ...i, ...updatedIssue } : i));
+
             console.log(`[ProjectContext] Successfully moved issue ${movedItem.id} to column ${destColumnId}`);
         } catch (error) {
             console.error("[ProjectContext] Failed to move issue on backend:", error);
-            // Revert on failure (to be simple, just reload issues or leave as is for now)
-            // Ideally we should revert the state but let's see if this is enough
+            // Revert on failure (simple reload for now)
+            window.location.reload();
         }
     }
 
@@ -183,7 +244,17 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             setSearchQuery,
             selectedAssigneeIds,
             setSelectedAssigneeIds,
-            toggleAssigneeFilter
+            toggleAssigneeFilter,
+            selectedStatusIds,
+            setSelectedStatusIds,
+            toggleStatusFilter,
+            selectedPriorityIds,
+            setSelectedPriorityIds,
+            togglePriorityFilter,
+            clearAllFilters,
+            activeFilterCount,
+            members,
+            isFetchingMembers
         }}>
             {children}
         </ProjectContext.Provider>

@@ -4,17 +4,12 @@ import { useState, useMemo } from "react"
 import { Search, MessageSquare, ListFilter, Check, MoreHorizontal, Info } from "lucide-react"
 import { OrganizationMemberResponse } from "@/features/workspace/api/workspace-api"
 import { cn } from "@/lib/utils"
+import { useProject } from "@/context/ProjectContext"
 
 interface BacklogFilterDropdownProps {
     isOpen: boolean
     onClose: () => void
     members: OrganizationMemberResponse[]
-    selectedAssignees: string[]
-    setSelectedAssignees: (ids: string[]) => void
-    selectedPriorities: string[]
-    setSelectedPriorities: (priorities: string[]) => void
-    selectedStatuses: string[]
-    setSelectedStatuses: (statuses: string[]) => void
 }
 
 type Category = "Parent" | "Assignee" | "Work type" | "Labels" | "Status" | "Priority"
@@ -22,14 +17,18 @@ type Category = "Parent" | "Assignee" | "Work type" | "Labels" | "Status" | "Pri
 export function BacklogFilterDropdown({
     isOpen,
     onClose,
-    members,
-    selectedAssignees,
-    setSelectedAssignees,
-    selectedPriorities,
-    setSelectedPriorities,
-    selectedStatuses,
-    setSelectedStatuses
+    members
 }: BacklogFilterDropdownProps) {
+    const {
+        selectedAssigneeIds,
+        toggleAssigneeFilter,
+        selectedStatusIds,
+        toggleStatusFilter,
+        selectedPriorityIds,
+        togglePriorityFilter,
+        columns
+    } = useProject()
+
     const [activeCategory, setActiveCategory] = useState<Category>("Priority")
     const [categorySearchQuery, setCategorySearchQuery] = useState("")
 
@@ -45,13 +44,12 @@ export function BacklogFilterDropdown({
         { id: "LOWEST", label: "Lowest", color: "#36B37E" }
     ]
 
-    const statusOptions = [
-        { id: "TODO", label: "To Do" },
-        { id: "IN_PROGRESS", label: "In Progress" },
-        { id: "IN_REVIEW", label: "In Review" },
-        { id: "IN_TESTING", label: "In Testing" },
-        { id: "DONE", label: "Done" }
-    ]
+    const statusOptions = useMemo(() => {
+        return columns.map(col => ({
+            id: col.id,
+            label: col.name
+        }))
+    }, [columns])
 
     const getOptions = () => {
         let options: { id: string; label: string; color?: string; avatar?: string | null }[] = []
@@ -71,18 +69,18 @@ export function BacklogFilterDropdown({
 
     const toggleOption = (id: string) => {
         if (activeCategory === "Priority") {
-            setSelectedPriorities(selectedPriorities.includes(id) ? selectedPriorities.filter(p => p !== id) : [...selectedPriorities, id])
+            togglePriorityFilter(id)
         } else if (activeCategory === "Status") {
-            setSelectedStatuses(selectedStatuses.includes(id) ? selectedStatuses.filter(s => s !== id) : [...selectedStatuses, id])
+            toggleStatusFilter(id)
         } else if (activeCategory === "Assignee") {
-            setSelectedAssignees(selectedAssignees.includes(id) ? selectedAssignees.filter(a => a !== id) : [...selectedAssignees, id])
+            toggleAssigneeFilter(id)
         }
     }
 
     const isSelected = (id: string) => {
-        if (activeCategory === "Priority") return selectedPriorities.includes(id)
-        if (activeCategory === "Status") return selectedStatuses.includes(id)
-        if (activeCategory === "Assignee") return selectedAssignees.includes(id)
+        if (activeCategory === "Priority") return selectedPriorityIds.includes(id)
+        if (activeCategory === "Status") return selectedStatusIds.includes(id)
+        if (activeCategory === "Assignee") return selectedAssigneeIds.includes(id)
         return false
     }
 

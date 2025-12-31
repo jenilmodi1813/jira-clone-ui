@@ -70,32 +70,6 @@ export function Sidebar({ className }: { className?: string }) {
                 );
 
                 setHierarchy(fullHierarchy);
-
-                // 3. Auto-select based on URL
-                const projectKeyMatch = pathname.match(/\/project\/([^\/]+)/);
-                if (projectKeyMatch) {
-                    const key = projectKeyMatch[1];
-                    for (const org of fullHierarchy) {
-                        const project = org.projects.find(p => p.projectKey === key);
-                        if (project) {
-                            const { projects, ...projInfo } = project as any;
-                            setCurrentProject(projInfo);
-                            setCurrentOrg({ id: org.id, name: org.name });
-
-                            if (project.board) {
-                                setCurrentBoard(project.board);
-                                setIssues(project.board.issues || []);
-                                setColumns(project.board.columns && project.board.columns.length > 0 ? project.board.columns : DEFAULT_COLUMNS);
-                            } else {
-                                // Fallback if no board
-                                setCurrentBoard(null);
-                                setIssues((project as any).issues || []);
-                                setColumns(DEFAULT_COLUMNS);
-                            }
-                            break;
-                        }
-                    }
-                }
             } catch (error) {
                 console.error("Hierarchy fetch error:", error);
             } finally {
@@ -104,7 +78,40 @@ export function Sidebar({ className }: { className?: string }) {
         };
 
         fetchHierarchy();
-    }, [pathname]);
+    }, []); // Only fetch once on mount
+
+    // 2. Effect for handling URL-based project selection
+    React.useEffect(() => {
+        if (loading || hierarchy.length === 0) return;
+
+        const projectKeyMatch = pathname.match(/\/project\/([^\/]+)/);
+        if (projectKeyMatch) {
+            const key = projectKeyMatch[1];
+
+            // Only update if project actually changed to avoid state loss on tab switch
+            if (currentProject?.projectKey === key) return;
+
+            for (const org of hierarchy) {
+                const project = org.projects.find(p => p.projectKey === key);
+                if (project) {
+                    const { projects, ...projInfo } = project as any;
+                    setCurrentProject(projInfo);
+                    setCurrentOrg({ id: org.id, name: org.name });
+
+                    if (project.board) {
+                        setCurrentBoard(project.board);
+                        setIssues(project.board.issues || []);
+                        setColumns(project.board.columns && project.board.columns.length > 0 ? project.board.columns : DEFAULT_COLUMNS);
+                    } else {
+                        setCurrentBoard(null);
+                        setIssues((project as any).issues || []);
+                        setColumns(DEFAULT_COLUMNS);
+                    }
+                    break;
+                }
+            }
+        }
+    }, [pathname, hierarchy, loading, currentProject?.projectKey]);
 
     return (
         <div className={cn("flex flex-col h-screen w-64 bg-[#FAFBFC] border-r border-[var(--border)] fixed left-0 top-0 z-30", className)}>

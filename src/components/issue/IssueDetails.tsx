@@ -13,7 +13,7 @@ interface IssueDetailsProps {
 }
 
 export function IssueDetails({ issue, onClose }: IssueDetailsProps) {
-    const { issues, deleteIssue, currentProject, updateIssue, columns, addIssue, users, getUserProfile } = useProject()
+    const { issues, deleteIssue, currentProject, updateIssue, columns, addIssue, users, getUserProfile, moveIssue } = useProject()
     const { data: session } = useSession()
     const [isDeleting, setIsDeleting] = useState(false)
 
@@ -61,7 +61,7 @@ export function IssueDetails({ issue, onClose }: IssueDetailsProps) {
             return
         }
         try {
-            const updated = await workspaceApi.updateIssue(issue.id, { title: editTitle })
+            const updated = await workspaceApi.updateIssueTitle(issue.id, editTitle)
             updateIssue(issue.id, { title: editTitle })
             // Note: We might need a global updateIssueTitle in context if we want Board/Sidebar to refresh
         } catch (error) {
@@ -77,7 +77,7 @@ export function IssueDetails({ issue, onClose }: IssueDetailsProps) {
             return
         }
         try {
-            const updated = await workspaceApi.updateIssue(issue.id, { description: editDesc })
+            const updated = await workspaceApi.updateIssueDescription(issue.id, editDesc)
             updateIssue(issue.id, { description: editDesc })
         } catch (error) {
             console.error("Failed to update description:", error)
@@ -100,6 +100,21 @@ export function IssueDetails({ issue, onClose }: IssueDetailsProps) {
         } finally {
             setIsDeleting(false)
         }
+    }
+
+    const handleStatusChange = async (newStatusId: string) => {
+        if (!issue?.id) return
+
+        const currentIssue = issues.find(i => i.id === issue.id)
+        if (!currentIssue) return
+
+        const sourceColumnId = currentIssue.boardColumnId || currentIssue.status
+        if (sourceColumnId === newStatusId) return
+
+        const sourceIndex = issues.filter(i => (i.boardColumnId || i.status) === sourceColumnId).findIndex(i => i.id === issue.id)
+        const destIndex = issues.filter(i => (i.boardColumnId || i.status) === newStatusId).length
+
+        moveIssue(sourceColumnId, newStatusId, sourceIndex, destIndex)
     }
 
     const handleCreateSubTask = async () => {
@@ -317,7 +332,18 @@ export function IssueDetails({ issue, onClose }: IssueDetailsProps) {
 
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm text-[var(--muted-foreground)]">Status</span>
-                                    <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-bold uppercase">{displayIssue.status}</span>
+                                    <select
+                                        value={displayIssue.boardColumnId || displayIssue.status}
+                                        onChange={(e) => handleStatusChange(e.target.value)}
+                                        className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-bold uppercase border-none outline-none cursor-pointer hover:bg-blue-200 transition-colors"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        {columns.map((column) => (
+                                            <option key={column.id} value={column.id}>
+                                                {column.name}
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm text-[var(--muted-foreground)]">Priority</span>
