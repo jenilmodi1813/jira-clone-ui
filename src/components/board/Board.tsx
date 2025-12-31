@@ -27,7 +27,11 @@ export function Board({ onIssueClick }: BoardProps) {
         setSearchQuery,
         selectedAssigneeIds,
         toggleAssigneeFilter,
-        currentOrg
+        selectedPriorityIds,
+        clearAllFilters,
+        currentOrg,
+        members,
+        isFetchingMembers
     } = useProject()
 
     const [boardColumns, setBoardColumns] = useState<ColumnType[]>([])
@@ -35,25 +39,6 @@ export function Board({ onIssueClick }: BoardProps) {
     const [draggedFromStatus, setDraggedFromStatus] = useState<IssueStatus | null>(null)
     const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null)
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
-
-    const [members, setMembers] = useState<OrganizationMemberResponse[]>([])
-    const [isFetchingMembers, setIsFetchingMembers] = useState(false)
-
-    useEffect(() => {
-        const fetchMembers = async () => {
-            setIsFetchingMembers(true)
-            try {
-                const targetOrgId = currentOrg?.id || "7ef1dab2-e0c7-4d73-8aad-d9f469044eda"
-                const allMembers = await workspaceApi.getOrganizationMembers(targetOrgId)
-                setMembers(allMembers)
-            } catch (error) {
-                console.error("Failed to fetch board members:", error)
-            } finally {
-                setIsFetchingMembers(false)
-            }
-        }
-        fetchMembers()
-    }, [currentOrg?.id])
 
     useEffect(() => {
         const cols = columns.map(col => {
@@ -69,7 +54,11 @@ export function Board({ onIssueClick }: BoardProps) {
                 const matchesAssignee = selectedAssigneeIds.length === 0 ||
                     (issue.assigneeId && selectedAssigneeIds.includes(issue.assigneeId));
 
-                return matchesColumn && matchesSearch && matchesAssignee;
+                // Priority filter
+                const matchesPriority = selectedPriorityIds.length === 0 ||
+                    selectedPriorityIds.includes(issue.priority);
+
+                return matchesColumn && matchesSearch && matchesAssignee && matchesPriority;
             });
             return {
                 id: col.id,
@@ -166,10 +155,10 @@ export function Board({ onIssueClick }: BoardProps) {
                     </button>
                     <div className="h-4 w-[1px] bg-gray-300 mx-2" />
                     <span
-                        onClick={() => setSearchQuery("")}
-                        className="text-xs text-gray-500 cursor-pointer hover:text-blue-600 transition-colors"
+                        onClick={clearAllFilters}
+                        className="text-xs text-blue-600 cursor-pointer hover:underline transition-colors"
                     >
-                        Only my issues
+                        Clear all filters
                     </span>
                     <span className="text-xs text-gray-500 cursor-default">Recently updated</span>
                 </div>

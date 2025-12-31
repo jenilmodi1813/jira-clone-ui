@@ -212,6 +212,26 @@ export const workspaceApi = {
         return response.json();
     },
 
+    updateIssueTitle: async (id: string, title: string): Promise<Issue> => {
+        const response = await fetch(`/api/issues/${id}/title`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title }),
+        });
+        if (!response.ok) throw new Error("Failed to update issue title");
+        return response.json();
+    },
+
+    updateIssueDescription: async (id: string, description: string): Promise<Issue> => {
+        const response = await fetch(`/api/issues/${id}/description`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ description }),
+        });
+        if (!response.ok) throw new Error("Failed to update issue description");
+        return response.json();
+    },
+
     acceptInvite: async (token: string): Promise<void> => {
         const response = await fetch(`/api/organizations/invites/accept?token=${token}`, {
             method: "POST",
