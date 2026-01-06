@@ -14,7 +14,7 @@ export async function GET(req: Request) {
         // If we have a dummy ID, missing ID, or "1", try to get the real one
         if ((!userId || userId === "1") && email) {
             console.log(`[Proxy Profile/Me] Missing real UUID, attempting fetch for ${email}`);
-            const profileRes = await fetch(`http://localhost:8083/api/users/profile/find-by-email?email=${encodeURIComponent(email)}`, {
+            const profileRes = await fetch(`http://localhost:8080/api/users/profile/find-by-email?email=${encodeURIComponent(email)}`, {
                 headers: { "Content-Type": "application/json" }
             });
             if (profileRes.ok) {
@@ -34,7 +34,7 @@ export async function GET(req: Request) {
 
         console.log(`[Proxy Profile/Me] Forwarding to 8083 with token and ID: ${userId}`);
 
-        const response = await fetch("http://localhost:8083/api/users/profile/me", {
+        const response = await fetch("http://localhost:8080/api/users/profile/me", {
             headers: {
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${token}`,

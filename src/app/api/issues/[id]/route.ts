@@ -25,7 +25,7 @@ export async function GET(
 
         // Fallback for real UUID if "1"
         if ((!userId || userId === "1") && email) {
-            const profileRes = await fetch(`http://localhost:8083/api/users/profile/find-by-email?email=${encodeURIComponent(email)}`, {
+            const profileRes = await fetch(`http://localhost:8080/api/users/profile/find-by-email?email=${encodeURIComponent(email)}`, {
                 headers: {
                     "Authorization": token ? `Bearer ${token}` : "",
                     "X-User-Email": email || "",
@@ -38,7 +38,7 @@ export async function GET(
             }
         }
 
-        const response = await fetch(`http://localhost:8087/api/issues/${id}`, {
+        const response = await fetch(`http://localhost:8080/api/issues/${id}`, {
             headers: {
                 "Content-Type": "application/json",
                 "Authorization": token ? `Bearer ${token}` : "",
@@ -82,7 +82,7 @@ export async function PUT(
 
         // Fallback for real UUID if "1"
         if ((!userId || userId === "1") && email) {
-            const profileRes = await fetch(`http://localhost:8083/api/users/profile/find-by-email?email=${encodeURIComponent(email)}`, {
+            const profileRes = await fetch(`http://localhost:8080/api/users/profile/find-by-email?email=${encodeURIComponent(email)}`, {
                 headers: {
                     "Authorization": token ? `Bearer ${token}` : "",
                     "X-User-Email": email || "",
@@ -95,7 +95,7 @@ export async function PUT(
             }
         }
 
-        const response = await fetch(`http://localhost:8087/api/issues/${id}`, {
+        const response = await fetch(`http://localhost:8080/api/issues/${id}`, {
             method: "PUT",
             headers: {
                 "Content-Type": "application/json",
@@ -132,7 +132,7 @@ export async function DELETE(
 
         // Fallback for real UUID if "1"
         if ((!userId || userId === "1") && email) {
-            const profileRes = await fetch(`http://localhost:8083/api/users/profile/find-by-email?email=${encodeURIComponent(email)}`, {
+            const profileRes = await fetch(`http://localhost:8080/api/users/profile/find-by-email?email=${encodeURIComponent(email)}`, {
                 headers: {
                     "Authorization": token ? `Bearer ${token}` : "",
                     "X-User-Email": email || "",
@@ -145,7 +145,7 @@ export async function DELETE(
             }
         }
 
-        const response = await fetch(`http://localhost:8087/api/issues/${id}`, {
+        const response = await fetch(`http://localhost:8080/api/issues/${id}`, {
             method: "DELETE",
             headers: {
                 "Authorization": token ? `Bearer ${token}` : "",

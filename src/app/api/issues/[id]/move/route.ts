@@ -19,7 +19,7 @@ export async function PATCH(
 
         // Fallback for real UUID if "1"
         if ((!userId || userId === "1") && email) {
-            const profileRes = await fetch(`http://localhost:8083/api/users/profile/find-by-email?email=${encodeURIComponent(email)}`, {
+            const profileRes = await fetch(`http://localhost:8080/api/users/profile/find-by-email?email=${encodeURIComponent(email)}`, {
                 headers: {
                     "Authorization": token ? `Bearer ${token}` : "",
                     "X-User-Email": email || "",
@@ -33,7 +33,7 @@ export async function PATCH(
         }
 
         // Backend Endpoint: PATCH http://localhost:8087/api/issues/{id}/move
-        const response = await fetch(`http://localhost:8087/api/issues/${id}/move`, {
+        const response = await fetch(`http://localhost:8080/api/issues/${id}/move`, {
             method: "PATCH",
             headers: {
                 "Content-Type": "application/json",

@@ -5,13 +5,13 @@ export async function POST(req: Request) {
         const body = await req.json();
 
         // The body should contain { email, otp }
-        const response = await fetch("http://localhost:8081/api/auth/verify-login", {
+        const response = await fetch("http://localhost:8080/api/auth/verify-login", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Origin": "http://localhost:8081",
-                "Referer": "http://localhost:8081/",
+                "Origin": "http://localhost:8080",
+                "Referer": "http://localhost:8080/",
             },
             body: JSON.stringify(body),
         });

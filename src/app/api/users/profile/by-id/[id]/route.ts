@@ -21,7 +21,7 @@ export async function GET(
         const token = (session as any).accessToken;
         const cookieHeader = req.headers.get("cookie") || "";
 
-        const response = await fetch(`http://localhost:8083/api/users/profile/${id}`, {
+        const response = await fetch(`http://localhost:8080/api/users/profile/${id}`, {
             headers: {
                 "Content-Type": "application/json",
                 "Authorization": token ? `Bearer ${token}` : "",

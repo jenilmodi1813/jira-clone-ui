@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
         // Fallback for real UUID if default ID
         if ((!userId || userId === "1") && email) {
             try {
-                const profileRes = await fetch(`http://localhost:8083/api/users/profile/find-by-email?email=${encodeURIComponent(email)}`, {
+                const profileRes = await fetch(`http://localhost:8080/api/users/profile/find-by-email?email=${encodeURIComponent(email)}`, {
                     headers: {
                         "Content-Type": "application/json",
                         "Authorization": `Bearer ${token}`,
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
         const payload = { ...body, leadId: userId };
 
         // Proxy to backend (Port 8085 as requested)
-        const response = await fetch("http://localhost:8085/api/projects", {
+        const response = await fetch("http://localhost:8080/api/projects", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

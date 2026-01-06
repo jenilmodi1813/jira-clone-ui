@@ -28,7 +28,7 @@ export async function GET(
         // Fallback for real UUID if default ID
         if ((!userId || userId === "1") && email) {
             try {
-                const profileRes = await fetch(`http://localhost:8083/api/users/profile/find-by-email?email=${encodeURIComponent(email)}`, {
+                const profileRes = await fetch(`http://localhost:8080/api/users/profile/find-by-email?email=${encodeURIComponent(email)}`, {
                     headers: {
                         "Content-Type": "application/json",
                         "Authorization": `Bearer ${token}`,
@@ -56,7 +56,7 @@ export async function GET(
             }
         }
 
-        const response = await fetch(`http://localhost:8086/api/boards/project/${projectId}`, {
+        const response = await fetch(`http://localhost:8080/api/boards/project/${projectId}`, {
             headers: {
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${token}`,

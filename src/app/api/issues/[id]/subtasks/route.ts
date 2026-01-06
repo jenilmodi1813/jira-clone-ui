@@ -12,7 +12,7 @@ export async function POST(
     try {
         const body = await req.json();
         const token = (session as any).accessToken;
-        const response = await fetch(`http://localhost:8087/api/issues/${id}/subtasks`, {
+        const response = await fetch(`http://localhost:8080/api/issues/${id}/subtasks`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

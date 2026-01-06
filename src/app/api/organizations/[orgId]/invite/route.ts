@@ -23,7 +23,7 @@ export async function POST(
         // Fallback for real UUID if default ID
         if ((!userId || userId === "1") && email) {
             try {
-                const profileRes = await fetch(`http://localhost:8083/api/users/profile/find-by-email?email=${encodeURIComponent(email)}`, {
+                const profileRes = await fetch(`http://localhost:8080/api/users/profile/find-by-email?email=${encodeURIComponent(email)}`, {
                     headers: {
                         "Content-Type": "application/json",
                         "Authorization": `Bearer ${token}`,
@@ -49,7 +49,7 @@ export async function POST(
         }
 
         // Proxy to backend (Port 8084 as requested)
-        const response = await fetch(`http://localhost:8084/api/organizations/${orgId}/invite`, {
+        const response = await fetch(`http://localhost:8080/api/organizations/${orgId}/invite`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

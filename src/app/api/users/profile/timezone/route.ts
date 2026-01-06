@@ -16,7 +16,7 @@ export async function PATCH(req: Request) {
 
         if ((!userId || userId === "1") && email) {
             console.log(`[Proxy] Missing real UUID, attempting fetch for ${email}`);
-            const profileRes = await fetch(`http://localhost:8083/api/users/profile/find-by-email?email=${encodeURIComponent(email)}`, {
+            const profileRes = await fetch(`http://localhost:8080/api/users/profile/find-by-email?email=${encodeURIComponent(email)}`, {
                 headers: { "Content-Type": "application/json" }
             });
             if (profileRes.ok) {
@@ -39,7 +39,7 @@ export async function PATCH(req: Request) {
             return NextResponse.json({ error: "Access token missing. Please log out and back in." }, { status: 401 });
         }
 
-        const response = await fetch("http://localhost:8083/api/users/profile/timezone", {
+        const response = await fetch("http://localhost:8080/api/users/profile/timezone", {
             method: "PATCH",
             headers: {
                 "Content-Type": "application/json",
