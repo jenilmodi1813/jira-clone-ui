@@ -15,7 +15,7 @@ export async function POST(req: Request) {
 
         // Fallback for real UUID if "1"
         if ((!userId || userId === "1") && email) {
-            const profileRes = await fetch(`http://localhost:8083/api/users/profile/find-by-email?email=${encodeURIComponent(email)}`, {
+            const profileRes = await fetch(`http://localhost:8080/api/users/profile/find-by-email?email=${encodeURIComponent(email)}`, {
                 headers: {
                     "Authorization": token ? `Bearer ${token}` : "",
                     "X-User-Email": email || "",
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
 
         if (body.assigneeId === "1") body.assigneeId = "4b319107-4223-4528-ab9f-fd8738cfbeac";
         if (body.reporterId === "1") body.reporterId = "4b319107-4223-4528-ab9f-fd8738cfbeac";
-        const response = await fetch(`http://localhost:8087/api/issues`, {
+        const response = await fetch(`http://localhost:8080/api/issues`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

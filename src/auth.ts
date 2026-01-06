@@ -30,7 +30,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     const { email, token, refreshToken } = validatedFields.data;
                     try {
                         // Fetch the real profile from the backend
-                        const response = await fetch(`http://localhost:8083/api/users/profile/find-by-email?email=${encodeURIComponent(email)}`);
+                        const response = await fetch(`http://localhost:8080/api/users/profile/find-by-email?email=${encodeURIComponent(email)}`);
                         if (response.ok) {
                             const profile = await response.json();
                             console.log("[Auth] Profile Data from backend:", JSON.stringify(profile));
@@ -115,7 +115,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             try {
                 const rt = token.refreshToken as string;
                 console.log("[Auth JWT] Refreshing with token:", rt ? rt.substring(0, 10) + "..." : "missing");
-                const response = await fetch("http://localhost:8081/api/auth/refresh", {
+                const response = await fetch("http://localhost:8080/api/auth/refresh", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ refreshToken: token.refreshToken }),

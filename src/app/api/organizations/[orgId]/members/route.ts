@@ -21,7 +21,7 @@ export async function GET(
         // Resolve userId if needed (pattern from other routes)
         if ((!userId || userId === "1") && email) {
             try {
-                const profileRes = await fetch(`http://localhost:8083/api/users/profile/find-by-email?email=${encodeURIComponent(email)}`, {
+                const profileRes = await fetch(`http://localhost:8080/api/users/profile/find-by-email?email=${encodeURIComponent(email)}`, {
                     headers: {
                         "Content-Type": "application/json",
                         "Authorization": `Bearer ${accessToken}`,
@@ -43,7 +43,7 @@ export async function GET(
         }
 
         // Proxy to backend
-        const response = await fetch(`http://localhost:8084/api/organizations/${orgId}/members`, {
+        const response = await fetch(`http://localhost:8080/api/organizations/${orgId}/members`, {
             method: "GET",
             headers: {
                 "Content-Type": "application/json",

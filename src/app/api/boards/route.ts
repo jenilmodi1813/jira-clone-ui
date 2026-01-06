@@ -17,7 +17,7 @@ export async function POST(req: Request) {
         // Fallback for real UUID if default ID
         if ((!userId || userId === "1") && email) {
             try {
-                const profileRes = await fetch(`http://localhost:8083/api/users/profile/find-by-email?email=${encodeURIComponent(email)}`, {
+                const profileRes = await fetch(`http://localhost:8080/api/users/profile/find-by-email?email=${encodeURIComponent(email)}`, {
                     headers: { "Content-Type": "application/json" }
                 });
                 if (profileRes.ok) {
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
 
         console.log(`[Board Proxy] Creating board for user: ${email} (ID: ${userId})`);
 
-        const response = await fetch("http://localhost:8086/api/boards", {
+        const response = await fetch("http://localhost:8080/api/boards", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

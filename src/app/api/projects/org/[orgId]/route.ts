@@ -24,7 +24,7 @@ export async function GET(
 
         // Fallback for real UUID
         if ((!userId || userId === "1") && email) {
-            const profileRes = await fetch(`http://localhost:8083/api/users/profile/find-by-email?email=${encodeURIComponent(email)}`, {
+            const profileRes = await fetch(`http://localhost:8080/api/users/profile/find-by-email?email=${encodeURIComponent(email)}`, {
                 headers: { "Content-Type": "application/json" }
             });
             if (profileRes.ok) {
@@ -35,7 +35,7 @@ export async function GET(
 
         const token = (session as any).accessToken;
 
-        const response = await fetch(`http://localhost:8085/api/projects/organization/${orgId}`, {
+        const response = await fetch(`http://localhost:8080/api/projects/organization/${orgId}`, {
             headers: {
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${token}`,

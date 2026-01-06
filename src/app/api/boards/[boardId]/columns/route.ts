@@ -18,7 +18,7 @@ export async function GET(
 
         // Fallback for real UUID if "1"
         if ((!userId || userId === "1") && email) {
-            const profileRes = await fetch(`http://localhost:8083/api/users/profile/find-by-email?email=${encodeURIComponent(email)}`, {
+            const profileRes = await fetch(`http://localhost:8080/api/users/profile/find-by-email?email=${encodeURIComponent(email)}`, {
                 headers: {
                     "Authorization": token ? `Bearer ${token}` : "",
                     "X-User-Email": email || "",
@@ -32,7 +32,7 @@ export async function GET(
         }
 
         // Correct Backend Endpoint: /api/boards/{boardId}/columns
-        const response = await fetch(`http://localhost:8086/api/boards/${boardId}/columns`, {
+        const response = await fetch(`http://localhost:8080/api/boards/${boardId}/columns`, {
             headers: {
                 "Authorization": token ? `Bearer ${token}` : "",
                 "X-Auth-User-Id": userId || "",

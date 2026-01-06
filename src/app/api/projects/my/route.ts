@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
         // Fallback for real UUID if default ID
         if ((!userId || userId === "1") && email) {
             try {
-                const profileRes = await fetch(`http://localhost:8083/api/users/profile/find-by-email?email=${encodeURIComponent(email)}`, {
+                const profileRes = await fetch(`http://localhost:8080/api/users/profile/find-by-email?email=${encodeURIComponent(email)}`, {
                     headers: { "Content-Type": "application/json" }
                 });
 
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
         const token = (session as any).accessToken;
 
         // Proxy to backend (Port 8085 as requested)
-        const response = await fetch("http://localhost:8085/api/projects/my", {
+        const response = await fetch("http://localhost:8080/api/projects/my", {
             headers: {
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${token}`,
